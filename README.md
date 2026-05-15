@@ -192,6 +192,8 @@ When EPLB is available, `recommend_placement` uses it instead of the built-in gr
 
 Bug reports and pull requests are welcome. The core profiling engine is open-source under Apache 2.0 and will remain so permanently.
 
+Join the community on **[Discord](https://discord.gg/6sjAjwnNK)**.
+
 ---
 
 ## Licence
