@@ -1,0 +1,33 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.env
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# mypy
+.mypy_cache/
+
+# ruff
+.ruff_cache/
+
+# plumb runtime artifacts
+/tmp/plumb/
+*.npy
+
+# IDE
+.idea/
+.vscode/
+*.swp

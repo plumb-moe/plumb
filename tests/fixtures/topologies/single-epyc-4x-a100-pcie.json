@@ -1,0 +1,6 @@
+{
+  "name": "single-socket EPYC + 4x A100 PCIe",
+  "gpu_to_numa": {
+    "0": 0, "1": 0, "2": 0, "3": 0
+  }
+}

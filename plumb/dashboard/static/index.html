@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>plumb</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; padding: 24px; }
+  h1 { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; }
+  .meta { color: #64748b; font-size: 0.85rem; margin-bottom: 24px; }
+  .cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }
+  .card { background: #1e2130; border-radius: 8px; padding: 16px 20px; min-width: 160px; }
+  .card-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
+  .card-value { font-size: 1.6rem; font-weight: 700; margin-top: 4px; }
+  .card-value.warn { color: #f59e0b; }
+  .card-value.ok   { color: #34d399; }
+  h2 { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+  .heatmap-wrap { overflow-x: auto; margin-bottom: 32px; }
+  .heatmap { display: grid; gap: 2px; width: max-content; }
+  .cell {
+    width: 28px; height: 28px; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: rgba(255,255,255,0.6);
+    cursor: default;
+  }
+  .cell:hover { outline: 2px solid #fff; }
+  .axis-label { font-size: 10px; color: #475569; display: flex; align-items: center; justify-content: center; }
+  .placement { background: #1e2130; border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+  .placement h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 8px; }
+  .placement .range { color: #34d399; font-size: 1.3rem; font-weight: 700; }
+  .placement .method { color: #64748b; font-size: 0.8rem; margin-top: 4px; }
+  .error { color: #f87171; padding: 24px; }
+  .loading { color: #64748b; padding: 24px; }
+  .gpu-chart { margin-bottom: 32px; }
+  .gpu-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 0.8rem; }
+  .gpu-label { width: 52px; color: #94a3b8; text-align: right; flex-shrink: 0; }
+  .gpu-bar-wrap { flex: 1; background: #1e2130; border-radius: 4px; height: 20px; overflow: hidden; }
+  .gpu-bar { height: 100%; border-radius: 4px; transition: width 0.3s ease; min-width: 2px; }
+  .gpu-count { width: 80px; color: #64748b; font-size: 0.75rem; text-align: right; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<h1>plumb</h1>
+<div class="meta" id="meta">Loading...</div>
+
+<div class="cards" id="cards"></div>
+
+<h2>Expert Load Heat Map</h2>
+<div class="heatmap-wrap"><div class="heatmap" id="heatmap"></div></div>
+
+<h2>GPU Utilization</h2>
+<div class="gpu-chart" id="gpu-chart"></div>
+
+<div id="placement"></div>
+
+<script>
+const POLL_MS = 3000;
+
+/*LIVE_START*/
+async function load() {
+  try {
+    const r = await fetch('/api/report');
+    const data = await r.json();
+    if (data.error) { show_error(data.error); return; }
+    render(data);
+  } catch(e) { show_error(e.message); }
+}
+/*LIVE_END*/
+
+function render(d) {
+  document.getElementById('meta').textContent =
+    `${d.model_name}  ·  ${d.hardware_config}  ·  ${d.total_forward_passes} passes  ·  ${d.profiling_duration_seconds.toFixed(1)}s`;
+
+  const ratios = d.layers.map(l => l.imbalance_ratio);
+  const meanRatio = (ratios.reduce((a,b)=>a+b,0)/ratios.length).toFixed(3);
+  const maxRatio  = Math.max(...ratios).toFixed(3);
+  const worstLayer = d.layers.reduce((a,b) => a.imbalance_ratio > b.imbalance_ratio ? a : b).layer_id;
+
+  const crossNumas = d.layers.map(l => l.cross_numa_rate).filter(v => v !== null);
+  const meanNuma = crossNumas.length
+    ? (crossNumas.reduce((a,b)=>a+b,0)/crossNumas.length*100).toFixed(1) + '%'
+    : 'N/A';
+
+  document.getElementById('cards').innerHTML = `
+    <div class="card"><div class="card-label">Mean Imbalance</div><div class="card-value ${meanRatio>1.5?'warn':'ok'}">${meanRatio}×</div></div>
+    <div class="card"><div class="card-label">Max Imbalance</div><div class="card-value ${maxRatio>2?'warn':'ok'}">${maxRatio}×</div></div>
+    <div class="card"><div class="card-label">Worst Layer</div><div class="card-value">${worstLayer}</div></div>
+    <div class="card"><div class="card-label">Cross-NUMA Rate</div><div class="card-value ${parseFloat(meanNuma)>10?'warn':'ok'}">${meanNuma}</div></div>
+    <div class="card"><div class="card-label">Layers</div><div class="card-value">${d.layers.length}</div></div>
+  `;
+
+  renderHeatmap(d.layers);
+  renderGpuChart(d);
+  renderPlacement(d.placement);
+}
+
+function renderHeatmap(layers) {
+  if (!layers.length) return;
+  const numExperts = Math.max(...layers.map(l => l.experts.length));
+  const el = document.getElementById('heatmap');
+
+  // Find global max for colour scaling
+  let globalMax = 0;
+  layers.forEach(l => l.experts.forEach(e => { if (e.token_count > globalMax) globalMax = e.token_count; }));
+  if (globalMax === 0) return;
+
+  // Build grid: rows = layers, cols = experts + axis label col
+  const cols = numExperts + 1;
+  el.style.gridTemplateColumns = `40px repeat(${numExperts}, 28px)`;
+
+  let html = `<div class="axis-label">Layer</div>`;
+  for (let e = 0; e < numExperts; e++) html += `<div class="axis-label">${e}</div>`;
+
+  layers.forEach(layer => {
+    html += `<div class="axis-label">${layer.layer_id}</div>`;
+    const byExpert = Object.fromEntries(layer.experts.map(e => [e.expert_id, e.token_count]));
+    for (let e = 0; e < numExperts; e++) {
+      const count = byExpert[e] || 0;
+      const intensity = count / globalMax;
+      const bg = heatColor(intensity);
+      const title = `Layer ${layer.layer_id}, Expert ${e}: ${count} tokens`;
+      html += `<div class="cell" style="background:${bg}" title="${title}"></div>`;
+    }
+  });
+
+  el.innerHTML = html;
+}
+
+function heatColor(t) {
+  // 0 = dark blue, 0.5 = orange, 1 = red
+  const r = Math.round(Math.min(255, t * 2 * 255));
+  const g = Math.round(Math.max(0, (0.5 - Math.abs(t - 0.5)) * 2 * 180));
+  const b = Math.round(Math.max(0, (1 - t * 2) * 180));
+  return `rgb(${r},${g},${b})`;
+}
+
+// NUMA domain colours (dark theme)
+const NUMA_COLOURS = ['#3b82f6', '#f59e0b', '#34d399', '#a78bfa', '#f87171'];
+const DEFAULT_COLOUR = '#64748b';
+
+function renderGpuChart(d) {
+  const el = document.getElementById('gpu-chart');
+  if (!d.placement || !d.layers || !d.layers.length) {
+    el.innerHTML = '<p style="color:#475569;font-size:0.8rem">No placement data — run with multi-GPU topology to see GPU utilization.</p>';
+    return;
+  }
+
+  // Aggregate token counts per GPU via placement map
+  const gpuLoad = {};
+  const placement = d.placement.expert_placement; // "layer:expert" -> gpu_id
+  d.layers.forEach(layer => {
+    layer.experts.forEach(expert => {
+      const key = `${layer.layer_id}:${expert.expert_id}`;
+      const gpu = placement[key];
+      if (gpu !== undefined && gpu !== null) {
+        gpuLoad[gpu] = (gpuLoad[gpu] || 0) + expert.token_count;
+      }
+    });
+  });
+
+  const gpuIds = Object.keys(gpuLoad).map(Number).sort((a,b) => a-b);
+  if (!gpuIds.length) { el.innerHTML = ''; return; }
+
+  const maxLoad = Math.max(...Object.values(gpuLoad));
+  if (maxLoad === 0) { el.innerHTML = ''; return; }
+
+  // NUMA coloring: gpu_to_numa keys are ints serialized as strings by pydantic
+  const numaMap = {};
+  if (d.gpu_to_numa) {
+    Object.entries(d.gpu_to_numa).forEach(([gpu, node]) => { numaMap[Number(gpu)] = node; });
+  }
+  const hasNuma = Object.keys(numaMap).length > 0;
+
+  let html = '';
+  gpuIds.forEach(gpu => {
+    const load = gpuLoad[gpu] || 0;
+    const pct = (load / maxLoad * 100).toFixed(1);
+    const node = hasNuma ? (numaMap[gpu] ?? 0) : 0;
+    const colour = hasNuma ? (NUMA_COLOURS[node % NUMA_COLOURS.length]) : DEFAULT_COLOUR;
+    const numaLabel = hasNuma ? ` <span style="color:${colour};font-size:0.7rem">N${node}</span>` : '';
+    html += `
+      <div class="gpu-row">
+        <div class="gpu-label">GPU ${gpu}${numaLabel}</div>
+        <div class="gpu-bar-wrap">
+          <div class="gpu-bar" style="width:${pct}%;background:${colour}"></div>
+        </div>
+        <div class="gpu-count">${load.toLocaleString()} tok</div>
+      </div>`;
+  });
+  el.innerHTML = html;
+}
+
+function renderPlacement(p) {
+  const el = document.getElementById('placement');
+  if (!p) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="placement">
+      <h3>Placement Recommendation</h3>
+      <div class="range">~${p.estimated_improvement_pct.toFixed(0)}% est. TTFT improvement (range: ${p.estimated_improvement_pct_min.toFixed(0)}–${p.estimated_improvement_pct_max.toFixed(0)}%)</div>
+      <div class="method">Method: ${p.method} · ${Object.keys(p.expert_placement).length} expert assignments computed</div>
+    </div>`;
+}
+
+function show_error(msg) {
+  document.getElementById('meta').innerHTML = `<span class="error">Error: ${msg}</span>`;
+}
+
+load();
+setInterval(load, POLL_MS);
+</script>
+</body>
+</html>
