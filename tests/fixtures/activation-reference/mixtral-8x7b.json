@@ -1,0 +1,21 @@
+{
+  "name": "Mixtral 8x7B — expert load statistics",
+  "sources": [
+    "arXiv:2401.04088 (Mixtral of Experts)",
+    "arXiv:2412.07067 (MoE-CAP: MoE Capacity Profiling)"
+  ],
+  "notes": "Mixtral 8x7B uses 8 experts per MoE layer with top-2 routing. Expert load imbalance ratios are derived from MoE-CAP profiling on benchmark workloads. Load imbalance is moderate and relatively consistent across layers compared to larger models.",
+  "model": {
+    "num_experts": 8,
+    "num_layers": 32,
+    "active_k": 2
+  },
+  "statistics": {
+    "mean_imbalance_ratio": 1.72,
+    "std_imbalance_ratio": 0.29,
+    "p10_imbalance_ratio": 1.35,
+    "p50_imbalance_ratio": 1.68,
+    "p90_imbalance_ratio": 2.10
+  },
+  "tolerance_pct": 10
+}

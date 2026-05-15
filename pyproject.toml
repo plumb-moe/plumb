@@ -1,0 +1,77 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "plumb-moe"
+version = "0.1.0"
+description = "MoE inference profiler — expert activation analysis and topology-aware placement for vLLM and HuggingFace Transformers"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+keywords = ["moe", "mixture-of-experts", "vllm", "inference", "profiling", "llm", "deepseek", "mixtral"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "click>=8.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "pydantic>=2.0",
+    "numpy>=1.26",
+    "rich>=13.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/YOUR_ORG/plumb"
+Repository = "https://github.com/YOUR_ORG/plumb"
+Issues = "https://github.com/YOUR_ORG/plumb/issues"
+
+[project.scripts]
+plumb = "plumb.cli:main"
+
+[project.optional-dependencies]
+gpu = [
+    "torch>=2.0",
+]
+eplb = [
+    # deepseek-ai/EPLB has no Python package; install manually if needed:
+    # pip install git+https://github.com/deepseek-ai/EPLB.git
+]
+prometheus = [
+    "prometheus-client>=0.9",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov",
+    "ruff",
+    "mypy",
+    "pip-audit",
+    "prometheus-client>=0.9",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["plumb"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true

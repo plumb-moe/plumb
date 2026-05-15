@@ -1,0 +1,21 @@
+{
+  "name": "DeepSeek V3 — expert load statistics",
+  "sources": [
+    "arXiv:2602.21626 (DeepSeek V3 Technical Report)",
+    "arXiv:2412.07067 (MoE-CAP: MoE Capacity Profiling)"
+  ],
+  "notes": "DeepSeek V3 uses 256 routed experts per MoE layer with top-8 routing. Expert load imbalance ratios (max_load / mean_load) are derived from Table 3 of the technical report and cross-validated against MoE-CAP profiling results. Imbalance is highest in early and final layers; middle layers are more balanced.",
+  "model": {
+    "num_experts": 256,
+    "num_layers": 61,
+    "active_k": 8
+  },
+  "statistics": {
+    "mean_imbalance_ratio": 2.24,
+    "std_imbalance_ratio": 0.38,
+    "p10_imbalance_ratio": 1.65,
+    "p50_imbalance_ratio": 2.18,
+    "p90_imbalance_ratio": 2.83
+  },
+  "tolerance_pct": 10
+}
