@@ -359,13 +359,29 @@ def test_launcher_forwards_sigterm_to_child(tmp_path):
 # test_plumb_run_autoattach_e2e
 # ---------------------------------------------------------------------------
 
+def _real_torch_available_in_subprocess() -> bool:
+    """Return True iff a fresh subprocess can import torch and allocate a tensor.
+
+    A torch *stub* installed in sys.modules earlier in this test file (via
+    _import_hook_with_stub) defeats pytest.importorskip in-process, so we
+    verify torch out-of-process where the stub doesn't reach.
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", "import torch; torch.randn(1)"],
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
 def test_plumb_run_autoattach_e2e(tmp_path):
     """plumb launcher injects autoattach hooks, records activations, writes snapshot JSON.
 
     Exercises the full `plumb run` autoattach path end-to-end:
       sitecustomize → background scanner → ProfilingHooks.attach → snapshot writer
-    Uses SAI_PROFILER_SCAN_INTERVAL=1 so the scanner fires within a second.
     """
+    if not _real_torch_available_in_subprocess():
+        pytest.skip("real torch not available in subprocess — autoattach e2e cannot run")
+
     import textwrap
     from plumb.launcher import launch
 
@@ -436,3 +452,92 @@ def test_plumb_run_autoattach_e2e(tmp_path):
         f"Expected pass_count > 0, got {snap['pass_count']}"
     )
     assert snap["expert_loads"], "Expected non-empty expert_loads in snapshot"
+
+
+def test_autoattach_session_writes_snapshot_without_torch(tmp_path, monkeypatch):
+    """Exercise the autoattach snapshot writer thread directly — no torch needed.
+
+    The e2e test (test_plumb_run_autoattach_e2e) requires real torch in a child
+    subprocess to register forward hooks. This test substitutes a stub hooks
+    object that just populates the counter, then verifies the snapshot writer
+    thread serializes the right JSON shape. Covers the second half of the
+    autoattach pipeline that previously had no working CI coverage.
+    """
+    import importlib
+    import sys
+    import time as time_mod
+    import threading
+
+    stub = _make_torch_stub()
+    monkeypatch.setitem(sys.modules, "torch", stub)
+    monkeypatch.setitem(sys.modules, "torch.nn", stub.nn)
+    monkeypatch.setitem(sys.modules, "torch._dynamo", stub._dynamo)
+
+    # Reload autoattach so its lazy imports pick up the stub cleanly.
+    if "plumb.autoattach" in sys.modules:
+        importlib.reload(sys.modules["plumb.autoattach"])
+    import plumb.autoattach as autoattach_mod
+
+    registry_dir = tmp_path / "plumb"
+    registry_dir.mkdir()
+    monkeypatch.setattr("plumb.registry.REGISTRY_DIR", registry_dir)
+    monkeypatch.setattr(autoattach_mod, "REGISTRY_DIR", registry_dir, raising=False)
+
+    # Replace ProfilingHooks with a stub that populates the counter directly
+    # (skipping the real register_forward_hook path that needs torch).
+    class _StubHooks:
+        def __init__(self, counter):
+            self.counter = counter
+        def attach(self, model, top_k=2):
+            for lid in range(4):
+                for eid in range(8):
+                    self.counter.record(lid, eid, token_count=10 + eid)
+            for _ in range(3):
+                self.counter.increment_pass()
+            return 4
+        def detach(self):
+            pass
+
+    # autoattach._attach_session imports ProfilingHooks lazily from .hook,
+    # so we patch plumb.hook.ProfilingHooks rather than autoattach's reference.
+    import plumb.hook as hook_mod
+    monkeypatch.setattr(hook_mod, "ProfilingHooks", _StubHooks, raising=False)
+
+    # Topology.discover() may try to call nvidia-smi; force the flat fallback.
+    import numa_topology
+    monkeypatch.setattr(numa_topology, "_count_gpus", lambda: 0)
+
+    # A minimal model object — autoattach._attach_session only reads type(model).__name__.
+    class TinyMoEModel:
+        pass
+
+    started = autoattach_mod._attach_session(TinyMoEModel(), n_moe=4)
+    assert started is True, "_attach_session should report success after the stub attach"
+
+    # Wait for the snapshot writer (writes every 2s) to flush at least once.
+    deadline = time_mod.time() + 5.0
+    snap_path = None
+    while time_mod.time() < deadline:
+        snaps = list(registry_dir.glob("*_snapshot.json"))
+        if snaps:
+            data = json.loads(snaps[0].read_text())
+            if data.get("pass_count", 0) > 0 and data.get("expert_loads"):
+                snap_path = snaps[0]
+                break
+        time_mod.sleep(0.2)
+
+    assert snap_path is not None, (
+        f"Snapshot writer never flushed valid data; registry contents: "
+        f"{list(registry_dir.iterdir())}"
+    )
+
+    snap = json.loads(snap_path.read_text())
+    assert snap["pass_count"] >= 1
+    assert snap["n_layers"] == 4
+    assert snap["model_name"] == "TinyMoEModel"
+    # expert_counts should mirror what _StubHooks recorded: 4 layers × 8 experts
+    assert len(snap["expert_counts"]) == 32
+    assert snap["expert_counts"]["0:0"] == 10
+    assert snap["expert_counts"]["0:7"] == 17
+    # imbalance summary should be populated for each layer
+    assert len(snap["imbalance"]) == 4

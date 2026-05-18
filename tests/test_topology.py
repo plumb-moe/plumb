@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import numa_topology
 from plumb.topology import Topology, _nvidia_smi_pci, _pci_path_variants, _sysfs_numa
 
 FIXTURES = Path(__file__).parent / "fixtures" / "topologies"
@@ -59,67 +60,85 @@ def test_nvidia_smi_pci_timeout_gives_none():
 
 
 # ---------------------------------------------------------------------------
-# _sysfs_numa
+# _sysfs_numa — exercises the REAL numa_topology._sysfs_numa by monkeypatching
+# the hardcoded /sys/bus/pci/devices path into a tmp_path mirror. The earlier
+# version of these tests reimplemented the function under test in the test file
+# itself; this version asserts the production code's behavior.
 # ---------------------------------------------------------------------------
 
-def _mock_smi(pci: str):
-    return MagicMock(returncode=0, stdout=pci + "\n")
+def _redirect_sysfs(monkeypatch, tmp_path):
+    """Make numa_topology.Path(/sys/bus/pci/devices/...) resolve under tmp_path."""
+    real_path = Path
+    prefix = "/sys/bus/pci/devices/"
+
+    def fake_path(p):
+        s = str(p)
+        if s.startswith(prefix):
+            return real_path(str(tmp_path / s[len(prefix):]))
+        return real_path(p)
+
+    monkeypatch.setattr(numa_topology, "Path", fake_path)
 
 
-def test_sysfs_numa_reads_correct_node(tmp_path):
+def test_sysfs_numa_reads_correct_node(tmp_path, monkeypatch):
     pci = "00000000:01:00.0"
-    sysfs_dir = tmp_path / "0000:01:00.0"
-    sysfs_dir.mkdir()
-    (sysfs_dir / "numa_node").write_text("1\n")
+    (tmp_path / "0000:01:00.0").mkdir()
+    (tmp_path / "0000:01:00.0" / "numa_node").write_text("1\n")
 
-    with patch("numa_topology.subprocess.run", return_value=_mock_smi(pci)), \
-         patch("numa_topology.Path") as MockPath:
-        # Route only the sysfs lookup through tmp_path; keep other Path usage real
-        def path_side_effect(p: str):
-            if "sys/bus/pci" in p:
-                addr = p.split("/sys/bus/pci/devices/")[1].split("/")[0]
-                return tmp_path / addr / "numa_node"
-            return Path(p)
-        MockPath.side_effect = path_side_effect
-        # Bypass the mock for exists/read_text by using real files in tmp_path
-        result = _sysfs_numa_via_tmppath(pci, tmp_path)
+    monkeypatch.setattr(numa_topology, "_nvidia_smi_pci", lambda idx: pci)
+    _redirect_sysfs(monkeypatch, tmp_path)
 
-    assert result == 1
+    assert _sysfs_numa(0) == 1
 
 
-def _sysfs_numa_via_tmppath(pci: str, tmp_path: Path) -> int | None:
-    """Call _sysfs_numa but redirect sysfs lookups into tmp_path."""
-    from plumb.topology import _pci_path_variants
-    for variant in _pci_path_variants(pci):
-        sysfs = tmp_path / variant / "numa_node"
-        if sysfs.exists():
-            val = int(sysfs.read_text().strip())
-            return max(val, 0)
-    return None
-
-
-def test_sysfs_numa_negative_one_treated_as_zero(tmp_path):
+def test_sysfs_numa_negative_one_treated_as_zero(tmp_path, monkeypatch):
     pci = "0000:02:00.0"
-    sysfs_dir = tmp_path / pci
-    sysfs_dir.mkdir()
-    (sysfs_dir / "numa_node").write_text("-1\n")
-    result = _sysfs_numa_via_tmppath(pci, tmp_path)
-    assert result == 0
+    (tmp_path / pci).mkdir()
+    (tmp_path / pci / "numa_node").write_text("-1\n")
+
+    monkeypatch.setattr(numa_topology, "_nvidia_smi_pci", lambda idx: pci)
+    _redirect_sysfs(monkeypatch, tmp_path)
+
+    assert _sysfs_numa(0) == 0
 
 
-def test_sysfs_numa_missing_file_returns_none(tmp_path):
+def test_sysfs_numa_missing_file_returns_none(tmp_path, monkeypatch):
     pci = "0000:03:00.0"
-    result = _sysfs_numa_via_tmppath(pci, tmp_path)
-    assert result is None
+    monkeypatch.setattr(numa_topology, "_nvidia_smi_pci", lambda idx: pci)
+    _redirect_sysfs(monkeypatch, tmp_path)
+
+    assert _sysfs_numa(0) is None
 
 
-def test_sysfs_numa_8char_domain_matches_4char_sysfs(tmp_path):
+def test_sysfs_numa_8char_domain_matches_4char_sysfs(tmp_path, monkeypatch):
     pci_smi = "00000000:04:00.0"   # what nvidia-smi returns
     sysfs_addr = "0000:04:00.0"    # what sysfs has
     (tmp_path / sysfs_addr).mkdir()
     (tmp_path / sysfs_addr / "numa_node").write_text("2\n")
-    result = _sysfs_numa_via_tmppath(pci_smi, tmp_path)
-    assert result == 2
+
+    monkeypatch.setattr(numa_topology, "_nvidia_smi_pci", lambda idx: pci_smi)
+    _redirect_sysfs(monkeypatch, tmp_path)
+
+    assert _sysfs_numa(0) == 2
+
+
+def test_sysfs_numa_returns_none_when_nvidia_smi_unavailable(tmp_path, monkeypatch):
+    """If nvidia-smi can't report a PCI ID, _sysfs_numa shorts out at None."""
+    monkeypatch.setattr(numa_topology, "_nvidia_smi_pci", lambda idx: None)
+    _redirect_sysfs(monkeypatch, tmp_path)
+    assert _sysfs_numa(0) is None
+
+
+def test_sysfs_numa_malformed_numa_node_value(tmp_path, monkeypatch):
+    """A non-integer numa_node file is treated as 'unknown' (None), not a crash."""
+    pci = "0000:05:00.0"
+    (tmp_path / pci).mkdir()
+    (tmp_path / pci / "numa_node").write_text("not-a-number\n")
+
+    monkeypatch.setattr(numa_topology, "_nvidia_smi_pci", lambda idx: pci)
+    _redirect_sysfs(monkeypatch, tmp_path)
+
+    assert _sysfs_numa(0) is None
 
 
 # ---------------------------------------------------------------------------

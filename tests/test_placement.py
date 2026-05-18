@@ -43,9 +43,10 @@ def test_basic_recommendation_shape():
     assert rec is not None
     # Should cover all (layer, expert) pairs
     assert len(rec.expert_placement) == 4 * 8
-    # All GPU assignments in range
-    for gpu in rec.expert_placement.values():
-        assert 0 <= gpu < 8
+    # All GPU assignments in range; values are now list[int]
+    for gpus in rec.expert_placement.values():
+        assert isinstance(gpus, list)
+        assert all(0 <= g < 8 for g in gpus)
 
 
 def test_improvement_bounds_from_paper():
@@ -108,6 +109,146 @@ def test_method_is_greedy_without_eplb():
     assert rec.method in ("greedy", "eplb")
 
 
+# ---------------------------------------------------------------------------
+# _try_eplb — live coverage via injected fake eplb + torch modules
+#
+# The real eplb.rebalance_experts returns (phy2log, log2phy, logcnt). The
+# placement code uses log2phy[li, ei, 0] // n_experts to pick the GPU. These
+# tests inject a controlled fake so we can assert:
+#   1. method=='eplb' when the import succeeds (not the silent greedy fallback)
+#   2. The result actually uses log2phy[..., 0] // n_experts (catches the class
+#      of bug we just fixed: rebalance vs rebalance_experts, 2-tuple vs 3-tuple)
+# ---------------------------------------------------------------------------
+
+def _install_fake_eplb_and_torch(monkeypatch, log2phy_array):
+    """Install fake torch + eplb modules so _try_eplb's import path succeeds.
+
+    log2phy_array: numpy ndarray of shape (n_layers, n_experts, max_replicas)
+                   used as the second tuple element returned by rebalance_experts.
+    """
+    import sys
+    import types
+    import numpy as np
+
+    # Fake torch.tensor — just returns the underlying numpy array since
+    # placement._try_eplb only calls .item() on log2phy elements (works on numpy).
+    fake_torch = types.ModuleType("torch")
+    fake_torch.tensor = lambda x: x  # caller wraps a numpy array; identity is fine
+
+    captured_args = {}
+
+    def fake_rebalance_experts(weight, num_replicas, num_groups, num_nodes, num_gpus):
+        captured_args["weight_shape"] = tuple(weight.shape)
+        captured_args["num_replicas"] = num_replicas
+        captured_args["num_groups"] = num_groups
+        captured_args["num_nodes"] = num_nodes
+        captured_args["num_gpus"] = num_gpus
+        # phy2log and logcnt are returned but unused — give them dummies
+        n_layers, n_experts = weight.shape
+        phy2log = np.zeros((n_layers, num_replicas), dtype=np.int64)
+        logcnt = np.ones((n_layers, n_experts), dtype=np.int64)
+        return phy2log, log2phy_array, logcnt
+
+    fake_eplb = types.ModuleType("eplb")
+    fake_eplb.rebalance_experts = fake_rebalance_experts
+
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    monkeypatch.setitem(sys.modules, "eplb", fake_eplb)
+    return captured_args
+
+
+def test_try_eplb_method_is_eplb_when_module_available(monkeypatch):
+    """When eplb imports cleanly, recommend_placement reports method='eplb'."""
+    import numpy as np
+
+    # 2 layers, 4 experts, 1 replica each — log2phy[li, ei, 0] = physical slot
+    # Slot -> GPU is slot // n_experts. For 2 GPUs × 4 experts, slots 0..3 → GPU 0, 4..7 → GPU 1.
+    log2phy = np.array([
+        [[0], [5], [1], [4]],   # layer 0: experts go to GPUs 0,1,0,1
+        [[6], [2], [7], [3]],   # layer 1: experts go to GPUs 1,0,1,0
+    ], dtype=np.int64)
+
+    _install_fake_eplb_and_torch(monkeypatch, log2phy)
+
+    # Strongly imbalanced load so the low-imbalance gate doesn't trip
+    data = {(layer, expert): (1000 if expert == 0 else 50) for layer in range(2) for expert in range(4)}
+    c = _counter_with(data)
+    rec = recommend_placement(c, _flat_topology(2), num_gpus=2)
+
+    assert rec is not None
+    assert rec.method == "eplb", f"expected method='eplb', got {rec.method!r}"
+
+
+def test_try_eplb_uses_log2phy_first_replica_div_n_experts(monkeypatch):
+    """GPU assignment must be log2phy[li, ei, 0] // n_experts (the formula we just fixed)."""
+    import numpy as np
+
+    # 1 layer, 4 experts, 2 GPUs → n_experts=4, slot // 4 = GPU
+    # log2phy[0, 0, 0] = 5 → slot 5 → GPU 1
+    # log2phy[0, 1, 0] = 0 → slot 0 → GPU 0
+    # log2phy[0, 2, 0] = 7 → slot 7 → GPU 1
+    # log2phy[0, 3, 0] = 2 → slot 2 → GPU 0
+    log2phy = np.array([[[5], [0], [7], [2]]], dtype=np.int64)
+
+    _install_fake_eplb_and_torch(monkeypatch, log2phy)
+
+    data = {(0, e): (1000 if e == 0 else 50) for e in range(4)}
+    c = _counter_with(data)
+    rec = recommend_placement(c, _flat_topology(2), num_gpus=2)
+
+    assert rec is not None and rec.method == "eplb"
+    # NUMA finetune is a no-op on single-NUMA Topology.flat, so assignments survive intact
+    # Values are now list[int]; no replication so each list has exactly one GPU
+    assert rec.expert_placement[(0, 0)] == [1]  # slot 5 // 4
+    assert rec.expert_placement[(0, 1)] == [0]  # slot 0 // 4
+    assert rec.expert_placement[(0, 2)] == [1]  # slot 7 // 4
+    assert rec.expert_placement[(0, 3)] == [0]  # slot 2 // 4
+
+
+def test_try_eplb_passes_correct_args_to_rebalance_experts(monkeypatch):
+    """rebalance_experts must be called with (weight, n_gpus*n_experts, n_gpus, 1, n_gpus)."""
+    import numpy as np
+
+    n_layers, n_experts, n_gpus = 2, 4, 2
+    log2phy = np.zeros((n_layers, n_experts, 1), dtype=np.int64)
+    captured = _install_fake_eplb_and_torch(monkeypatch, log2phy)
+
+    data = {(layer, expert): (1000 if expert == 0 else 50) for layer in range(n_layers) for expert in range(n_experts)}
+    c = _counter_with(data)
+    rec = recommend_placement(c, _flat_topology(n_gpus), num_gpus=n_gpus)
+
+    assert rec is not None and rec.method == "eplb"
+    assert captured["weight_shape"] == (n_layers, n_experts)
+    assert captured["num_replicas"] == n_gpus * n_experts
+    assert captured["num_groups"] == n_gpus
+    assert captured["num_nodes"] == 1
+    assert captured["num_gpus"] == n_gpus
+
+
+def test_try_eplb_falls_back_to_greedy_when_rebalance_raises(monkeypatch):
+    """If eplb.rebalance_experts raises, _try_eplb logs and falls back to greedy."""
+    import sys
+    import types
+
+    fake_torch = types.ModuleType("torch")
+    fake_torch.tensor = lambda x: x
+
+    fake_eplb = types.ModuleType("eplb")
+    def bad_rebalance(*args, **kwargs):
+        raise RuntimeError("simulated eplb failure")
+    fake_eplb.rebalance_experts = bad_rebalance
+
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    monkeypatch.setitem(sys.modules, "eplb", fake_eplb)
+
+    data = {(0, e): (1000 if e == 0 else 50) for e in range(4)}
+    c = _counter_with(data)
+    rec = recommend_placement(c, _flat_topology(2), num_gpus=2)
+
+    assert rec is not None
+    assert rec.method == "greedy", f"expected greedy fallback, got {rec.method!r}"
+
+
 def test_numa_finetune_pins_hot_experts_to_numa0():
     # Build a strongly imbalanced layer: expert 7 is hottest
     data = {(0, e): (1000 if e == 7 else 10) for e in range(8)}
@@ -116,8 +257,8 @@ def test_numa_finetune_pins_hot_experts_to_numa0():
     rec = recommend_placement(c, topology, num_gpus=8)
     assert rec is not None
     # The hottest expert in layer 0 should be placed on a NUMA-0 GPU (0-3)
-    hot_gpu = rec.expert_placement[(0, 7)]
-    assert topology.gpu_to_numa[hot_gpu] == 0
+    hot_gpus = rec.expert_placement[(0, 7)]
+    assert topology.gpu_to_numa[hot_gpus[0]] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -131,8 +272,8 @@ def test_greedy_spreads_across_gpus():
     experts = list(range(8))
     load = np.array([[float(e + 1) for e in experts]])  # linearly increasing
     placement = _greedy(load, n_gpus=4, layers=layers, experts=experts)
-    # Each GPU should get at least one expert
-    gpus_used = set(placement.values())
+    # Each GPU should get at least one expert; values are now list[int]
+    gpus_used = {gpus[0] for gpus in placement.values()}
     assert gpus_used == {0, 1, 2, 3}
 
 
@@ -142,8 +283,8 @@ def test_greedy_assigns_hottest_expert_to_gpu0():
     # Expert 7 is much hotter than the rest
     load = np.array([[1.0] * 7 + [999.0]])
     placement = _greedy(load, n_gpus=4, layers=[0], experts=list(range(8)))
-    # Hottest expert (index 7) gets rank 0 → GPU 0
-    assert placement[(0, 7)] == 0
+    # Hottest expert (index 7) gets rank 0 → GPU 0; value is list[int]
+    assert placement[(0, 7)] == [0]
 
 
 # ---------------------------------------------------------------------------

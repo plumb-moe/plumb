@@ -196,8 +196,9 @@ def test_placement_uses_topology():
         if not any(layer_loads.values()):
             continue
         hottest_eid = max(layer_loads, key=layer_loads.__getitem__)
-        gpu = rec.expert_placement.get((lid, hottest_eid))
-        assert gpu is not None, f"No placement for (layer={lid}, expert={hottest_eid})"
+        gpus = rec.expert_placement.get((lid, hottest_eid))
+        assert gpus is not None, f"No placement for (layer={lid}, expert={hottest_eid})"
+        gpu = gpus[0] if isinstance(gpus, list) else gpus
         assert gpu in numa0_gpus, (
             f"Layer {lid}: hottest expert {hottest_eid} placed on GPU {gpu}, "
             f"expected one of NUMA-0 GPUs {numa0_gpus}"

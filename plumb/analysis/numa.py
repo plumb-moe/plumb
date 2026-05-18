@@ -14,8 +14,8 @@ class NumaStats:
 
 
 def compute_cross_numa(
-    expert_placement: dict[tuple[int, int], int],  # (layer, expert) -> gpu
-    expert_loads: dict[tuple[int, int], int],       # (layer, expert) -> token_count
+    expert_placement: dict[tuple[int, int], int | list[int]],  # (layer, expert) -> gpu or [gpu, ...]
+    expert_loads: dict[tuple[int, int], int],                   # (layer, expert) -> token_count
     topology: Topology,
     src_gpu: int = 0,
 ) -> list[NumaStats]:
@@ -23,7 +23,8 @@ def compute_cross_numa(
     by_layer: dict[int, tuple[int, int]] = {}  # layer -> (total, cross)
 
     for (layer_id, expert_id), count in expert_loads.items():
-        dst_gpu = expert_placement.get((layer_id, expert_id), 0)
+        dst_raw = expert_placement.get((layer_id, expert_id), 0)
+        dst_gpu = dst_raw[0] if isinstance(dst_raw, list) else dst_raw
         total, cross = by_layer.get(layer_id, (0, 0))
         total += count
         if not topology.same_numa(src_gpu, dst_gpu):

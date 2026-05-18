@@ -23,8 +23,8 @@ class LayerReport(BaseModel):
 
 class PlacementReport(BaseModel):
     method: str
-    # JSON-safe key: "layer_id:expert_id"
-    expert_placement: dict[str, int]
+    # JSON-safe key: "layer_id:expert_id"; value is list of target GPU ranks (len>1 = replicated)
+    expert_placement: dict[str, list[int]]
     estimated_improvement_pct_min: float
     estimated_improvement_pct_max: float
     estimated_improvement_pct: float
