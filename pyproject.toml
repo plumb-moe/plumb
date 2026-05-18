@@ -63,7 +63,7 @@ dev = [
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["plumb"]
+packages = ["plumb", "numa_topology"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

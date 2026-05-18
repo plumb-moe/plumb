@@ -1,4 +1,5 @@
-import torch
+import pytest
+torch = pytest.importorskip("torch", reason="torch not installed — install plumb-moe[gpu] to run hook tests")
 import torch.nn as nn
 from unittest.mock import patch
 
