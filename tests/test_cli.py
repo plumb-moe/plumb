@@ -205,3 +205,72 @@ class TestReport:
         assert out_file.exists()
         data = json.loads(out_file.read_text())
         assert data["model_name"] == "MixtralForCausalLM"
+
+
+# ---------------------------------------------------------------------------
+# eplb output
+# ---------------------------------------------------------------------------
+
+class TestEplbOutput:
+    def test_write_eplb_output_shape_and_dtype(self, tmp_path):
+        """_write_eplb_output produces a float32 (num_layers, num_experts) .npy file."""
+        import time
+        import numpy as np
+        from plumb.cli import _write_eplb_output
+        from plumb.registry import SessionInfo
+
+        expert_loads = {"0:0": 5, "0:1": 3, "1:0": 4, "1:1": 2}
+        snapshot_data = {
+            "pid": 99999,
+            "model_name": "FakeModel",
+            "pass_count": 10,
+            "updated_at": time.time(),
+            "expert_loads": expert_loads,
+            "expert_counts": expert_loads,
+        }
+        snap_path = tmp_path / "snap.json"
+        snap_path.write_text(json.dumps(snapshot_data))
+
+        session = SessionInfo(
+            pid=99999,
+            model_name="FakeModel",
+            n_layers=2,
+            socket_path="",
+            started_at=time.time(),
+            snapshot_path=str(snap_path),
+        )
+        out_npy = tmp_path / "out.npy"
+
+        with patch("plumb.cli.list_sessions", return_value=[session]):
+            _write_eplb_output(str(out_npy))
+
+        assert out_npy.exists()
+        arr = np.load(str(out_npy))
+        assert arr.shape == (2, 2)
+        assert arr.dtype == np.float32
+        assert arr[0, 0] == pytest.approx(5.0)
+        assert arr[1, 1] == pytest.approx(2.0)
+
+    def test_eplb_written_even_when_child_exits_via_sigterm(self, tmp_path):
+        """_write_eplb_output is called regardless of child exit code (including SIGTERM -15)."""
+        import signal
+        from plumb.cli import run
+
+        written: list[str] = []
+
+        def fake_write(path: str) -> None:
+            written.append(path)
+
+        out = str(tmp_path / "weights.npy")
+        with patch("plumb.launcher.launch", return_value=-signal.SIGTERM), \
+             patch("plumb.cli._write_eplb_output", side_effect=fake_write), \
+             patch("sys.exit"):
+            runner = CliRunner()
+            runner.invoke(run, ["--eplb-output", out, "--", "vllm", "serve", "model"])
+
+        assert written == [out], f"_write_eplb_output not called; written={written}"
+
+    def test_run_exposes_prometheus_port_option(self):
+        from plumb.cli import run
+        param_names = {p.name for p in run.params}
+        assert "prometheus_port" in param_names

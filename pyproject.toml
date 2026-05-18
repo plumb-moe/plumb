@@ -32,9 +32,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/YOUR_ORG/plumb"
-Repository = "https://github.com/YOUR_ORG/plumb"
-Issues = "https://github.com/YOUR_ORG/plumb/issues"
+Homepage = "https://github.com/plumb-moe/plumb"
+Repository = "https://github.com/plumb-moe/plumb"
+Issues = "https://github.com/plumb-moe/plumb/issues"
 
 [project.scripts]
 plumb = "plumb.cli:main"
@@ -67,6 +67,9 @@ packages = ["plumb"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: marks tests that spawn subprocesses or require a real GPU environment (deselect with '-m \"not slow\"')",
+]
 
 [tool.ruff]
 line-length = 100

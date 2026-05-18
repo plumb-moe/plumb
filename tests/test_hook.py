@@ -3,7 +3,15 @@ import torch.nn as nn
 from unittest.mock import patch
 
 from plumb.counter import ActivationCounter
-from plumb.hook import ProfilingHooks, _layer_id_from_path, detect_transformers_version
+from plumb.hook import (
+    ProfilingHooks,
+    _BLOCK_EXTRACTORS,
+    _VLLM_GATE_BLOCKS,
+    _layer_id_from_path,
+    detect_transformers_version,
+    recording_enabled,
+    PAUSE_FILE,
+)
 
 
 class MixtralSparseMoeBlock(nn.Module):
@@ -271,3 +279,66 @@ def test_context_manager():
         model(torch.randn(2, 8))
     after = sum(counter.snapshot().values())
     assert before == after
+
+
+# ---------------------------------------------------------------------------
+# block registry contents
+# ---------------------------------------------------------------------------
+
+def test_qwen2_moe_block_in_block_extractors():
+    assert "Qwen2MoeSparseMoeBlock" in _BLOCK_EXTRACTORS
+
+
+def test_qwen3_moe_block_in_block_extractors():
+    assert "Qwen3MoeSparseMoeBlock" in _BLOCK_EXTRACTORS
+
+
+def test_qwen_extractors_return_index_1_for_tuples():
+    fake_hidden = object()
+    fake_logits = object()
+    for name in ("Qwen2MoeSparseMoeBlock", "Qwen3MoeSparseMoeBlock"):
+        extractor = _BLOCK_EXTRACTORS[name]
+        assert extractor((fake_hidden, fake_logits)) is fake_logits
+        assert extractor(fake_hidden) is None   # non-tuple → None
+
+
+def test_deepseek_v3_in_vllm_gate_blocks():
+    assert "DeepseekV3MoE" in _VLLM_GATE_BLOCKS
+    assert _VLLM_GATE_BLOCKS["DeepseekV3MoE"] == "gate"
+
+
+def test_deepseek_v2_also_present():
+    assert "DeepseekV2MoE" in _VLLM_GATE_BLOCKS
+    assert _VLLM_GATE_BLOCKS["DeepseekV2MoE"] == "gate"
+
+
+# ---------------------------------------------------------------------------
+# recording_enabled / pause file
+# ---------------------------------------------------------------------------
+
+def test_recording_enabled_by_default(tmp_path, monkeypatch):
+    import plumb.hook as hook_mod
+    monkeypatch.setattr(hook_mod, "PAUSE_FILE", str(tmp_path / "plumb_paused"))
+    monkeypatch.setattr(hook_mod, "_last_toggle_check", 0.0)
+    assert hook_mod.recording_enabled() is True
+
+
+def test_pause_file_disables_recording(tmp_path, monkeypatch):
+    import plumb.hook as hook_mod
+    pause = tmp_path / "plumb_paused"
+    monkeypatch.setattr(hook_mod, "PAUSE_FILE", str(pause))
+    monkeypatch.setattr(hook_mod, "_last_toggle_check", 0.0)
+    pause.touch()
+    assert hook_mod.recording_enabled() is False
+
+
+def test_removing_pause_file_re_enables_recording(tmp_path, monkeypatch):
+    import plumb.hook as hook_mod
+    pause = tmp_path / "plumb_paused"
+    monkeypatch.setattr(hook_mod, "PAUSE_FILE", str(pause))
+    monkeypatch.setattr(hook_mod, "_last_toggle_check", 0.0)
+    pause.touch()
+    assert hook_mod.recording_enabled() is False
+    pause.unlink()
+    monkeypatch.setattr(hook_mod, "_last_toggle_check", 0.0)
+    assert hook_mod.recording_enabled() is True
