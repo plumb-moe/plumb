@@ -1,0 +1,1840 @@
+{
+  "model_name": "Mixtral-8x7B",
+  "hardware_config": "max-Standard-PC-i440FX-PIIX-1996 \u2014 NVIDIA GeForce RTX 3070",
+  "profiling_duration_seconds": 120.0,
+  "total_forward_passes": 1000,
+  "layers": [
+    {
+      "layer_id": 0,
+      "imbalance_ratio": 1.6416,
+      "max_expert_id": 3,
+      "min_expert_id": 5,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3171,
+          "activation_fraction": 0.0968
+        },
+        {
+          "expert_id": 1,
+          "token_count": 2863,
+          "activation_fraction": 0.0874
+        },
+        {
+          "expert_id": 2,
+          "token_count": 5280,
+          "activation_fraction": 0.1611
+        },
+        {
+          "expert_id": 3,
+          "token_count": 6724,
+          "activation_fraction": 0.2052
+        },
+        {
+          "expert_id": 4,
+          "token_count": 3906,
+          "activation_fraction": 0.1192
+        },
+        {
+          "expert_id": 5,
+          "token_count": 2757,
+          "activation_fraction": 0.0841
+        },
+        {
+          "expert_id": 6,
+          "token_count": 2758,
+          "activation_fraction": 0.0842
+        },
+        {
+          "expert_id": 7,
+          "token_count": 5309,
+          "activation_fraction": 0.162
+        }
+      ]
+    },
+    {
+      "layer_id": 1,
+      "imbalance_ratio": 1.522,
+      "max_expert_id": 3,
+      "min_expert_id": 6,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3751,
+          "activation_fraction": 0.1145
+        },
+        {
+          "expert_id": 1,
+          "token_count": 3601,
+          "activation_fraction": 0.1099
+        },
+        {
+          "expert_id": 2,
+          "token_count": 3851,
+          "activation_fraction": 0.1175
+        },
+        {
+          "expert_id": 3,
+          "token_count": 6234,
+          "activation_fraction": 0.1902
+        },
+        {
+          "expert_id": 4,
+          "token_count": 3349,
+          "activation_fraction": 0.1022
+        },
+        {
+          "expert_id": 5,
+          "token_count": 5416,
+          "activation_fraction": 0.1653
+        },
+        {
+          "expert_id": 6,
+          "token_count": 2679,
+          "activation_fraction": 0.0818
+        },
+        {
+          "expert_id": 7,
+          "token_count": 3887,
+          "activation_fraction": 0.1186
+        }
+      ]
+    },
+    {
+      "layer_id": 2,
+      "imbalance_ratio": 1.3955,
+      "max_expert_id": 2,
+      "min_expert_id": 5,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3472,
+          "activation_fraction": 0.106
+        },
+        {
+          "expert_id": 1,
+          "token_count": 4531,
+          "activation_fraction": 0.1383
+        },
+        {
+          "expert_id": 2,
+          "token_count": 5716,
+          "activation_fraction": 0.1744
+        },
+        {
+          "expert_id": 3,
+          "token_count": 3657,
+          "activation_fraction": 0.1116
+        },
+        {
+          "expert_id": 4,
+          "token_count": 5298,
+          "activation_fraction": 0.1617
+        },
+        {
+          "expert_id": 5,
+          "token_count": 3086,
+          "activation_fraction": 0.0942
+        },
+        {
+          "expert_id": 6,
+          "token_count": 3592,
+          "activation_fraction": 0.1096
+        },
+        {
+          "expert_id": 7,
+          "token_count": 3416,
+          "activation_fraction": 0.1042
+        }
+      ]
+    },
+    {
+      "layer_id": 3,
+      "imbalance_ratio": 1.8486,
+      "max_expert_id": 3,
+      "min_expert_id": 6,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 4667,
+          "activation_fraction": 0.1424
+        },
+        {
+          "expert_id": 1,
+          "token_count": 2460,
+          "activation_fraction": 0.0751
+        },
+        {
+          "expert_id": 2,
+          "token_count": 3165,
+          "activation_fraction": 0.0966
+        },
+        {
+          "expert_id": 3,
+          "token_count": 7572,
+          "activation_fraction": 0.2311
+        },
+        {
+          "expert_id": 4,
+          "token_count": 3239,
+          "activation_fraction": 0.0988
+        },
+        {
+          "expert_id": 5,
+          "token_count": 5769,
+          "activation_fraction": 0.1761
+        },
+        {
+          "expert_id": 6,
+          "token_count": 2369,
+          "activation_fraction": 0.0723
+        },
+        {
+          "expert_id": 7,
+          "token_count": 3527,
+          "activation_fraction": 0.1076
+        }
+      ]
+    },
+    {
+      "layer_id": 4,
+      "imbalance_ratio": 1.1555,
+      "max_expert_id": 4,
+      "min_expert_id": 5,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 4144,
+          "activation_fraction": 0.1265
+        },
+        {
+          "expert_id": 1,
+          "token_count": 4723,
+          "activation_fraction": 0.1441
+        },
+        {
+          "expert_id": 2,
+          "token_count": 4198,
+          "activation_fraction": 0.1281
+        },
+        {
+          "expert_id": 3,
+          "token_count": 4077,
+          "activation_fraction": 0.1244
+        },
+        {
+          "expert_id": 4,
+          "token_count": 4733,
+          "activation_fraction": 0.1444
+        },
+        {
+          "expert_id": 5,
+          "token_count": 3562,
+          "activation_fraction": 0.1087
+        },
+        {
+          "expert_id": 6,
+          "token_count": 3730,
+          "activation_fraction": 0.1138
+        },
+        {
+          "expert_id": 7,
+          "token_count": 3601,
+          "activation_fraction": 0.1099
+        }
+      ]
+    },
+    {
+      "layer_id": 5,
+      "imbalance_ratio": 1.3293,
+      "max_expert_id": 2,
+      "min_expert_id": 6,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3781,
+          "activation_fraction": 0.1154
+        },
+        {
+          "expert_id": 1,
+          "token_count": 4271,
+          "activation_fraction": 0.1303
+        },
+        {
+          "expert_id": 2,
+          "token_count": 5445,
+          "activation_fraction": 0.1662
+        },
+        {
+          "expert_id": 3,
+          "token_count": 4592,
+          "activation_fraction": 0.1401
+        },
+        {
+          "expert_id": 4,
+          "token_count": 4281,
+          "activation_fraction": 0.1306
+        },
+        {
+          "expert_id": 5,
+          "token_count": 3415,
+          "activation_fraction": 0.1042
+        },
+        {
+          "expert_id": 6,
+          "token_count": 3019,
+          "activation_fraction": 0.0921
+        },
+        {
+          "expert_id": 7,
+          "token_count": 3964,
+          "activation_fraction": 0.121
+        }
+      ]
+    },
+    {
+      "layer_id": 6,
+      "imbalance_ratio": 1.9524,
+      "max_expert_id": 7,
+      "min_expert_id": 4,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 4081,
+          "activation_fraction": 0.1245
+        },
+        {
+          "expert_id": 1,
+          "token_count": 3141,
+          "activation_fraction": 0.0959
+        },
+        {
+          "expert_id": 2,
+          "token_count": 5049,
+          "activation_fraction": 0.1541
+        },
+        {
+          "expert_id": 3,
+          "token_count": 3444,
+          "activation_fraction": 0.1051
+        },
+        {
+          "expert_id": 4,
+          "token_count": 2332,
+          "activation_fraction": 0.0712
+        },
+        {
+          "expert_id": 5,
+          "token_count": 2356,
+          "activation_fraction": 0.0719
+        },
+        {
+          "expert_id": 6,
+          "token_count": 4368,
+          "activation_fraction": 0.1333
+        },
+        {
+          "expert_id": 7,
+          "token_count": 7997,
+          "activation_fraction": 0.244
+        }
+      ]
+    },
+    {
+      "layer_id": 7,
+      "imbalance_ratio": 1.4565,
+      "max_expert_id": 7,
+      "min_expert_id": 1,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 5859,
+          "activation_fraction": 0.1788
+        },
+        {
+          "expert_id": 1,
+          "token_count": 2505,
+          "activation_fraction": 0.0764
+        },
+        {
+          "expert_id": 2,
+          "token_count": 4539,
+          "activation_fraction": 0.1385
+        },
+        {
+          "expert_id": 3,
+          "token_count": 2996,
+          "activation_fraction": 0.0914
+        },
+        {
+          "expert_id": 4,
+          "token_count": 3565,
+          "activation_fraction": 0.1088
+        },
+        {
+          "expert_id": 5,
+          "token_count": 3338,
+          "activation_fraction": 0.1019
+        },
+        {
+          "expert_id": 6,
+          "token_count": 4000,
+          "activation_fraction": 0.1221
+        },
+        {
+          "expert_id": 7,
+          "token_count": 5966,
+          "activation_fraction": 0.1821
+        }
+      ]
+    },
+    {
+      "layer_id": 8,
+      "imbalance_ratio": 1.6069,
+      "max_expert_id": 1,
+      "min_expert_id": 7,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 4831,
+          "activation_fraction": 0.1474
+        },
+        {
+          "expert_id": 1,
+          "token_count": 6582,
+          "activation_fraction": 0.2009
+        },
+        {
+          "expert_id": 2,
+          "token_count": 3676,
+          "activation_fraction": 0.1122
+        },
+        {
+          "expert_id": 3,
+          "token_count": 2955,
+          "activation_fraction": 0.0902
+        },
+        {
+          "expert_id": 4,
+          "token_count": 3577,
+          "activation_fraction": 0.1092
+        },
+        {
+          "expert_id": 5,
+          "token_count": 4340,
+          "activation_fraction": 0.1324
+        },
+        {
+          "expert_id": 6,
+          "token_count": 4267,
+          "activation_fraction": 0.1302
+        },
+        {
+          "expert_id": 7,
+          "token_count": 2540,
+          "activation_fraction": 0.0775
+        }
+      ]
+    },
+    {
+      "layer_id": 9,
+      "imbalance_ratio": 1.8489,
+      "max_expert_id": 0,
+      "min_expert_id": 4,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 7573,
+          "activation_fraction": 0.2311
+        },
+        {
+          "expert_id": 1,
+          "token_count": 3377,
+          "activation_fraction": 0.1031
+        },
+        {
+          "expert_id": 2,
+          "token_count": 3111,
+          "activation_fraction": 0.0949
+        },
+        {
+          "expert_id": 3,
+          "token_count": 3783,
+          "activation_fraction": 0.1154
+        },
+        {
+          "expert_id": 4,
+          "token_count": 2274,
+          "activation_fraction": 0.0694
+        },
+        {
+          "expert_id": 5,
+          "token_count": 2559,
+          "activation_fraction": 0.0781
+        },
+        {
+          "expert_id": 6,
+          "token_count": 7376,
+          "activation_fraction": 0.2251
+        },
+        {
+          "expert_id": 7,
+          "token_count": 2715,
+          "activation_fraction": 0.0829
+        }
+      ]
+    },
+    {
+      "layer_id": 10,
+      "imbalance_ratio": 1.5159,
+      "max_expert_id": 5,
+      "min_expert_id": 3,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3240,
+          "activation_fraction": 0.0989
+        },
+        {
+          "expert_id": 1,
+          "token_count": 3220,
+          "activation_fraction": 0.0983
+        },
+        {
+          "expert_id": 2,
+          "token_count": 4164,
+          "activation_fraction": 0.1271
+        },
+        {
+          "expert_id": 3,
+          "token_count": 2746,
+          "activation_fraction": 0.0838
+        },
+        {
+          "expert_id": 4,
+          "token_count": 4782,
+          "activation_fraction": 0.1459
+        },
+        {
+          "expert_id": 5,
+          "token_count": 6209,
+          "activation_fraction": 0.1895
+        },
+        {
+          "expert_id": 6,
+          "token_count": 3921,
+          "activation_fraction": 0.1197
+        },
+        {
+          "expert_id": 7,
+          "token_count": 4486,
+          "activation_fraction": 0.1369
+        }
+      ]
+    },
+    {
+      "layer_id": 11,
+      "imbalance_ratio": 1.5728,
+      "max_expert_id": 3,
+      "min_expert_id": 2,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 4581,
+          "activation_fraction": 0.1398
+        },
+        {
+          "expert_id": 1,
+          "token_count": 5050,
+          "activation_fraction": 0.1541
+        },
+        {
+          "expert_id": 2,
+          "token_count": 1647,
+          "activation_fraction": 0.0503
+        },
+        {
+          "expert_id": 3,
+          "token_count": 6442,
+          "activation_fraction": 0.1966
+        },
+        {
+          "expert_id": 4,
+          "token_count": 5109,
+          "activation_fraction": 0.1559
+        },
+        {
+          "expert_id": 5,
+          "token_count": 2241,
+          "activation_fraction": 0.0684
+        },
+        {
+          "expert_id": 6,
+          "token_count": 3172,
+          "activation_fraction": 0.0968
+        },
+        {
+          "expert_id": 7,
+          "token_count": 4526,
+          "activation_fraction": 0.1381
+        }
+      ]
+    },
+    {
+      "layer_id": 12,
+      "imbalance_ratio": 1.6655,
+      "max_expert_id": 6,
+      "min_expert_id": 0,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 2096,
+          "activation_fraction": 0.064
+        },
+        {
+          "expert_id": 1,
+          "token_count": 5634,
+          "activation_fraction": 0.1719
+        },
+        {
+          "expert_id": 2,
+          "token_count": 3436,
+          "activation_fraction": 0.1049
+        },
+        {
+          "expert_id": 3,
+          "token_count": 3844,
+          "activation_fraction": 0.1173
+        },
+        {
+          "expert_id": 4,
+          "token_count": 2493,
+          "activation_fraction": 0.0761
+        },
+        {
+          "expert_id": 5,
+          "token_count": 3379,
+          "activation_fraction": 0.1031
+        },
+        {
+          "expert_id": 6,
+          "token_count": 6822,
+          "activation_fraction": 0.2082
+        },
+        {
+          "expert_id": 7,
+          "token_count": 5064,
+          "activation_fraction": 0.1545
+        }
+      ]
+    },
+    {
+      "layer_id": 13,
+      "imbalance_ratio": 2.0854,
+      "max_expert_id": 2,
+      "min_expert_id": 4,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 6047,
+          "activation_fraction": 0.1845
+        },
+        {
+          "expert_id": 1,
+          "token_count": 4776,
+          "activation_fraction": 0.1458
+        },
+        {
+          "expert_id": 2,
+          "token_count": 8542,
+          "activation_fraction": 0.2607
+        },
+        {
+          "expert_id": 3,
+          "token_count": 4753,
+          "activation_fraction": 0.1451
+        },
+        {
+          "expert_id": 4,
+          "token_count": 1398,
+          "activation_fraction": 0.0427
+        },
+        {
+          "expert_id": 5,
+          "token_count": 3105,
+          "activation_fraction": 0.0948
+        },
+        {
+          "expert_id": 6,
+          "token_count": 1681,
+          "activation_fraction": 0.0513
+        },
+        {
+          "expert_id": 7,
+          "token_count": 2466,
+          "activation_fraction": 0.0753
+        }
+      ]
+    },
+    {
+      "layer_id": 14,
+      "imbalance_ratio": 1.917,
+      "max_expert_id": 4,
+      "min_expert_id": 0,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 1532,
+          "activation_fraction": 0.0468
+        },
+        {
+          "expert_id": 1,
+          "token_count": 2961,
+          "activation_fraction": 0.0904
+        },
+        {
+          "expert_id": 2,
+          "token_count": 5192,
+          "activation_fraction": 0.1584
+        },
+        {
+          "expert_id": 3,
+          "token_count": 1793,
+          "activation_fraction": 0.0547
+        },
+        {
+          "expert_id": 4,
+          "token_count": 7852,
+          "activation_fraction": 0.2396
+        },
+        {
+          "expert_id": 5,
+          "token_count": 4691,
+          "activation_fraction": 0.1432
+        },
+        {
+          "expert_id": 6,
+          "token_count": 5752,
+          "activation_fraction": 0.1755
+        },
+        {
+          "expert_id": 7,
+          "token_count": 2995,
+          "activation_fraction": 0.0914
+        }
+      ]
+    },
+    {
+      "layer_id": 15,
+      "imbalance_ratio": 1.5017,
+      "max_expert_id": 4,
+      "min_expert_id": 6,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 4822,
+          "activation_fraction": 0.1472
+        },
+        {
+          "expert_id": 1,
+          "token_count": 4047,
+          "activation_fraction": 0.1235
+        },
+        {
+          "expert_id": 2,
+          "token_count": 4053,
+          "activation_fraction": 0.1237
+        },
+        {
+          "expert_id": 3,
+          "token_count": 3768,
+          "activation_fraction": 0.115
+        },
+        {
+          "expert_id": 4,
+          "token_count": 6151,
+          "activation_fraction": 0.1877
+        },
+        {
+          "expert_id": 5,
+          "token_count": 3046,
+          "activation_fraction": 0.093
+        },
+        {
+          "expert_id": 6,
+          "token_count": 1770,
+          "activation_fraction": 0.054
+        },
+        {
+          "expert_id": 7,
+          "token_count": 5111,
+          "activation_fraction": 0.156
+        }
+      ]
+    },
+    {
+      "layer_id": 16,
+      "imbalance_ratio": 1.2935,
+      "max_expert_id": 7,
+      "min_expert_id": 4,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3857,
+          "activation_fraction": 0.1177
+        },
+        {
+          "expert_id": 1,
+          "token_count": 5045,
+          "activation_fraction": 0.154
+        },
+        {
+          "expert_id": 2,
+          "token_count": 3970,
+          "activation_fraction": 0.1212
+        },
+        {
+          "expert_id": 3,
+          "token_count": 4633,
+          "activation_fraction": 0.1414
+        },
+        {
+          "expert_id": 4,
+          "token_count": 2626,
+          "activation_fraction": 0.0801
+        },
+        {
+          "expert_id": 5,
+          "token_count": 3368,
+          "activation_fraction": 0.1028
+        },
+        {
+          "expert_id": 6,
+          "token_count": 3971,
+          "activation_fraction": 0.1212
+        },
+        {
+          "expert_id": 7,
+          "token_count": 5298,
+          "activation_fraction": 0.1617
+        }
+      ]
+    },
+    {
+      "layer_id": 17,
+      "imbalance_ratio": 1.6252,
+      "max_expert_id": 7,
+      "min_expert_id": 3,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 4366,
+          "activation_fraction": 0.1332
+        },
+        {
+          "expert_id": 1,
+          "token_count": 3374,
+          "activation_fraction": 0.103
+        },
+        {
+          "expert_id": 2,
+          "token_count": 3540,
+          "activation_fraction": 0.108
+        },
+        {
+          "expert_id": 3,
+          "token_count": 2747,
+          "activation_fraction": 0.0838
+        },
+        {
+          "expert_id": 4,
+          "token_count": 3138,
+          "activation_fraction": 0.0958
+        },
+        {
+          "expert_id": 5,
+          "token_count": 3729,
+          "activation_fraction": 0.1138
+        },
+        {
+          "expert_id": 6,
+          "token_count": 5217,
+          "activation_fraction": 0.1592
+        },
+        {
+          "expert_id": 7,
+          "token_count": 6657,
+          "activation_fraction": 0.2032
+        }
+      ]
+    },
+    {
+      "layer_id": 18,
+      "imbalance_ratio": 1.5896,
+      "max_expert_id": 1,
+      "min_expert_id": 3,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3960,
+          "activation_fraction": 0.1208
+        },
+        {
+          "expert_id": 1,
+          "token_count": 6511,
+          "activation_fraction": 0.1987
+        },
+        {
+          "expert_id": 2,
+          "token_count": 2705,
+          "activation_fraction": 0.0826
+        },
+        {
+          "expert_id": 3,
+          "token_count": 1511,
+          "activation_fraction": 0.0461
+        },
+        {
+          "expert_id": 4,
+          "token_count": 5652,
+          "activation_fraction": 0.1725
+        },
+        {
+          "expert_id": 5,
+          "token_count": 2741,
+          "activation_fraction": 0.0836
+        },
+        {
+          "expert_id": 6,
+          "token_count": 5779,
+          "activation_fraction": 0.1764
+        },
+        {
+          "expert_id": 7,
+          "token_count": 3909,
+          "activation_fraction": 0.1193
+        }
+      ]
+    },
+    {
+      "layer_id": 19,
+      "imbalance_ratio": 2.0127,
+      "max_expert_id": 3,
+      "min_expert_id": 0,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 2392,
+          "activation_fraction": 0.073
+        },
+        {
+          "expert_id": 1,
+          "token_count": 3053,
+          "activation_fraction": 0.0932
+        },
+        {
+          "expert_id": 2,
+          "token_count": 3348,
+          "activation_fraction": 0.1022
+        },
+        {
+          "expert_id": 3,
+          "token_count": 8244,
+          "activation_fraction": 0.2516
+        },
+        {
+          "expert_id": 4,
+          "token_count": 5799,
+          "activation_fraction": 0.177
+        },
+        {
+          "expert_id": 5,
+          "token_count": 2528,
+          "activation_fraction": 0.0771
+        },
+        {
+          "expert_id": 6,
+          "token_count": 4307,
+          "activation_fraction": 0.1314
+        },
+        {
+          "expert_id": 7,
+          "token_count": 3097,
+          "activation_fraction": 0.0945
+        }
+      ]
+    },
+    {
+      "layer_id": 20,
+      "imbalance_ratio": 1.3567,
+      "max_expert_id": 2,
+      "min_expert_id": 0,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 2486,
+          "activation_fraction": 0.0759
+        },
+        {
+          "expert_id": 1,
+          "token_count": 4645,
+          "activation_fraction": 0.1418
+        },
+        {
+          "expert_id": 2,
+          "token_count": 5557,
+          "activation_fraction": 0.1696
+        },
+        {
+          "expert_id": 3,
+          "token_count": 4243,
+          "activation_fraction": 0.1295
+        },
+        {
+          "expert_id": 4,
+          "token_count": 3162,
+          "activation_fraction": 0.0965
+        },
+        {
+          "expert_id": 5,
+          "token_count": 4266,
+          "activation_fraction": 0.1302
+        },
+        {
+          "expert_id": 6,
+          "token_count": 3263,
+          "activation_fraction": 0.0996
+        },
+        {
+          "expert_id": 7,
+          "token_count": 5146,
+          "activation_fraction": 0.157
+        }
+      ]
+    },
+    {
+      "layer_id": 21,
+      "imbalance_ratio": 1.4172,
+      "max_expert_id": 7,
+      "min_expert_id": 5,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3563,
+          "activation_fraction": 0.1087
+        },
+        {
+          "expert_id": 1,
+          "token_count": 3394,
+          "activation_fraction": 0.1036
+        },
+        {
+          "expert_id": 2,
+          "token_count": 4370,
+          "activation_fraction": 0.1334
+        },
+        {
+          "expert_id": 3,
+          "token_count": 3892,
+          "activation_fraction": 0.1188
+        },
+        {
+          "expert_id": 4,
+          "token_count": 4300,
+          "activation_fraction": 0.1312
+        },
+        {
+          "expert_id": 5,
+          "token_count": 2843,
+          "activation_fraction": 0.0868
+        },
+        {
+          "expert_id": 6,
+          "token_count": 4601,
+          "activation_fraction": 0.1404
+        },
+        {
+          "expert_id": 7,
+          "token_count": 5805,
+          "activation_fraction": 0.1772
+        }
+      ]
+    },
+    {
+      "layer_id": 22,
+      "imbalance_ratio": 2.2683,
+      "max_expert_id": 1,
+      "min_expert_id": 2,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3688,
+          "activation_fraction": 0.1125
+        },
+        {
+          "expert_id": 1,
+          "token_count": 9291,
+          "activation_fraction": 0.2835
+        },
+        {
+          "expert_id": 2,
+          "token_count": 1345,
+          "activation_fraction": 0.041
+        },
+        {
+          "expert_id": 3,
+          "token_count": 3177,
+          "activation_fraction": 0.097
+        },
+        {
+          "expert_id": 4,
+          "token_count": 1943,
+          "activation_fraction": 0.0593
+        },
+        {
+          "expert_id": 5,
+          "token_count": 3135,
+          "activation_fraction": 0.0957
+        },
+        {
+          "expert_id": 6,
+          "token_count": 5629,
+          "activation_fraction": 0.1718
+        },
+        {
+          "expert_id": 7,
+          "token_count": 4560,
+          "activation_fraction": 0.1392
+        }
+      ]
+    },
+    {
+      "layer_id": 23,
+      "imbalance_ratio": 1.3713,
+      "max_expert_id": 4,
+      "min_expert_id": 3,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3855,
+          "activation_fraction": 0.1176
+        },
+        {
+          "expert_id": 1,
+          "token_count": 4573,
+          "activation_fraction": 0.1396
+        },
+        {
+          "expert_id": 2,
+          "token_count": 3943,
+          "activation_fraction": 0.1203
+        },
+        {
+          "expert_id": 3,
+          "token_count": 2885,
+          "activation_fraction": 0.088
+        },
+        {
+          "expert_id": 4,
+          "token_count": 5617,
+          "activation_fraction": 0.1714
+        },
+        {
+          "expert_id": 5,
+          "token_count": 5210,
+          "activation_fraction": 0.159
+        },
+        {
+          "expert_id": 6,
+          "token_count": 3714,
+          "activation_fraction": 0.1133
+        },
+        {
+          "expert_id": 7,
+          "token_count": 2971,
+          "activation_fraction": 0.0907
+        }
+      ]
+    },
+    {
+      "layer_id": 24,
+      "imbalance_ratio": 1.8201,
+      "max_expert_id": 6,
+      "min_expert_id": 7,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 2476,
+          "activation_fraction": 0.0756
+        },
+        {
+          "expert_id": 1,
+          "token_count": 2848,
+          "activation_fraction": 0.0869
+        },
+        {
+          "expert_id": 2,
+          "token_count": 4179,
+          "activation_fraction": 0.1275
+        },
+        {
+          "expert_id": 3,
+          "token_count": 6857,
+          "activation_fraction": 0.2093
+        },
+        {
+          "expert_id": 4,
+          "token_count": 2486,
+          "activation_fraction": 0.0759
+        },
+        {
+          "expert_id": 5,
+          "token_count": 4243,
+          "activation_fraction": 0.1295
+        },
+        {
+          "expert_id": 6,
+          "token_count": 7455,
+          "activation_fraction": 0.2275
+        },
+        {
+          "expert_id": 7,
+          "token_count": 2224,
+          "activation_fraction": 0.0679
+        }
+      ]
+    },
+    {
+      "layer_id": 25,
+      "imbalance_ratio": 1.4426,
+      "max_expert_id": 6,
+      "min_expert_id": 2,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3039,
+          "activation_fraction": 0.0927
+        },
+        {
+          "expert_id": 1,
+          "token_count": 4901,
+          "activation_fraction": 0.1496
+        },
+        {
+          "expert_id": 2,
+          "token_count": 2670,
+          "activation_fraction": 0.0815
+        },
+        {
+          "expert_id": 3,
+          "token_count": 5232,
+          "activation_fraction": 0.1597
+        },
+        {
+          "expert_id": 4,
+          "token_count": 3293,
+          "activation_fraction": 0.1005
+        },
+        {
+          "expert_id": 5,
+          "token_count": 2790,
+          "activation_fraction": 0.0851
+        },
+        {
+          "expert_id": 6,
+          "token_count": 5909,
+          "activation_fraction": 0.1803
+        },
+        {
+          "expert_id": 7,
+          "token_count": 4934,
+          "activation_fraction": 0.1506
+        }
+      ]
+    },
+    {
+      "layer_id": 26,
+      "imbalance_ratio": 1.4229,
+      "max_expert_id": 7,
+      "min_expert_id": 6,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3708,
+          "activation_fraction": 0.1132
+        },
+        {
+          "expert_id": 1,
+          "token_count": 3667,
+          "activation_fraction": 0.1119
+        },
+        {
+          "expert_id": 2,
+          "token_count": 3914,
+          "activation_fraction": 0.1194
+        },
+        {
+          "expert_id": 3,
+          "token_count": 2449,
+          "activation_fraction": 0.0747
+        },
+        {
+          "expert_id": 4,
+          "token_count": 5660,
+          "activation_fraction": 0.1727
+        },
+        {
+          "expert_id": 5,
+          "token_count": 5467,
+          "activation_fraction": 0.1668
+        },
+        {
+          "expert_id": 6,
+          "token_count": 2075,
+          "activation_fraction": 0.0633
+        },
+        {
+          "expert_id": 7,
+          "token_count": 5828,
+          "activation_fraction": 0.1779
+        }
+      ]
+    },
+    {
+      "layer_id": 27,
+      "imbalance_ratio": 1.8999,
+      "max_expert_id": 2,
+      "min_expert_id": 4,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3055,
+          "activation_fraction": 0.0932
+        },
+        {
+          "expert_id": 1,
+          "token_count": 4775,
+          "activation_fraction": 0.1457
+        },
+        {
+          "expert_id": 2,
+          "token_count": 7782,
+          "activation_fraction": 0.2375
+        },
+        {
+          "expert_id": 3,
+          "token_count": 3876,
+          "activation_fraction": 0.1183
+        },
+        {
+          "expert_id": 4,
+          "token_count": 2077,
+          "activation_fraction": 0.0634
+        },
+        {
+          "expert_id": 5,
+          "token_count": 4460,
+          "activation_fraction": 0.1361
+        },
+        {
+          "expert_id": 6,
+          "token_count": 2963,
+          "activation_fraction": 0.0904
+        },
+        {
+          "expert_id": 7,
+          "token_count": 3780,
+          "activation_fraction": 0.1154
+        }
+      ]
+    },
+    {
+      "layer_id": 28,
+      "imbalance_ratio": 1.5374,
+      "max_expert_id": 5,
+      "min_expert_id": 6,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 4141,
+          "activation_fraction": 0.1264
+        },
+        {
+          "expert_id": 1,
+          "token_count": 4059,
+          "activation_fraction": 0.1239
+        },
+        {
+          "expert_id": 2,
+          "token_count": 3071,
+          "activation_fraction": 0.0937
+        },
+        {
+          "expert_id": 3,
+          "token_count": 5146,
+          "activation_fraction": 0.157
+        },
+        {
+          "expert_id": 4,
+          "token_count": 4439,
+          "activation_fraction": 0.1355
+        },
+        {
+          "expert_id": 5,
+          "token_count": 6297,
+          "activation_fraction": 0.1922
+        },
+        {
+          "expert_id": 6,
+          "token_count": 2723,
+          "activation_fraction": 0.0831
+        },
+        {
+          "expert_id": 7,
+          "token_count": 2892,
+          "activation_fraction": 0.0883
+        }
+      ]
+    },
+    {
+      "layer_id": 29,
+      "imbalance_ratio": 1.7002,
+      "max_expert_id": 1,
+      "min_expert_id": 3,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 3734,
+          "activation_fraction": 0.114
+        },
+        {
+          "expert_id": 1,
+          "token_count": 6964,
+          "activation_fraction": 0.2125
+        },
+        {
+          "expert_id": 2,
+          "token_count": 3560,
+          "activation_fraction": 0.1086
+        },
+        {
+          "expert_id": 3,
+          "token_count": 2490,
+          "activation_fraction": 0.076
+        },
+        {
+          "expert_id": 4,
+          "token_count": 4046,
+          "activation_fraction": 0.1235
+        },
+        {
+          "expert_id": 5,
+          "token_count": 6706,
+          "activation_fraction": 0.2047
+        },
+        {
+          "expert_id": 6,
+          "token_count": 2589,
+          "activation_fraction": 0.079
+        },
+        {
+          "expert_id": 7,
+          "token_count": 2679,
+          "activation_fraction": 0.0818
+        }
+      ]
+    },
+    {
+      "layer_id": 30,
+      "imbalance_ratio": 2.2581,
+      "max_expert_id": 4,
+      "min_expert_id": 1,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 7426,
+          "activation_fraction": 0.2266
+        },
+        {
+          "expert_id": 1,
+          "token_count": 833,
+          "activation_fraction": 0.0254
+        },
+        {
+          "expert_id": 2,
+          "token_count": 1313,
+          "activation_fraction": 0.0401
+        },
+        {
+          "expert_id": 3,
+          "token_count": 1968,
+          "activation_fraction": 0.0601
+        },
+        {
+          "expert_id": 4,
+          "token_count": 9249,
+          "activation_fraction": 0.2823
+        },
+        {
+          "expert_id": 5,
+          "token_count": 4396,
+          "activation_fraction": 0.1342
+        },
+        {
+          "expert_id": 6,
+          "token_count": 5856,
+          "activation_fraction": 0.1787
+        },
+        {
+          "expert_id": 7,
+          "token_count": 1727,
+          "activation_fraction": 0.0527
+        }
+      ]
+    },
+    {
+      "layer_id": 31,
+      "imbalance_ratio": 1.7871,
+      "max_expert_id": 3,
+      "min_expert_id": 0,
+      "cross_numa_rate": 0.0,
+      "experts": [
+        {
+          "expert_id": 0,
+          "token_count": 1930,
+          "activation_fraction": 0.0589
+        },
+        {
+          "expert_id": 1,
+          "token_count": 3882,
+          "activation_fraction": 0.1185
+        },
+        {
+          "expert_id": 2,
+          "token_count": 5240,
+          "activation_fraction": 0.1599
+        },
+        {
+          "expert_id": 3,
+          "token_count": 7320,
+          "activation_fraction": 0.2234
+        },
+        {
+          "expert_id": 4,
+          "token_count": 4574,
+          "activation_fraction": 0.1396
+        },
+        {
+          "expert_id": 5,
+          "token_count": 3306,
+          "activation_fraction": 0.1009
+        },
+        {
+          "expert_id": 6,
+          "token_count": 2773,
+          "activation_fraction": 0.0846
+        },
+        {
+          "expert_id": 7,
+          "token_count": 3743,
+          "activation_fraction": 0.1142
+        }
+      ]
+    }
+  ],
+  "placement": {
+    "method": "greedy",
+    "expert_placement": {
+      "0:3": 0,
+      "0:7": 1,
+      "0:2": 2,
+      "0:4": 3,
+      "0:0": 4,
+      "0:1": 5,
+      "0:6": 6,
+      "0:5": 7,
+      "1:3": 0,
+      "1:5": 1,
+      "1:7": 2,
+      "1:2": 3,
+      "1:0": 4,
+      "1:1": 5,
+      "1:4": 6,
+      "1:6": 7,
+      "2:2": 0,
+      "2:4": 1,
+      "2:1": 2,
+      "2:3": 3,
+      "2:6": 4,
+      "2:0": 5,
+      "2:7": 6,
+      "2:5": 7,
+      "3:3": 0,
+      "3:5": 1,
+      "3:0": 2,
+      "3:7": 3,
+      "3:4": 4,
+      "3:2": 5,
+      "3:1": 6,
+      "3:6": 7,
+      "4:4": 0,
+      "4:1": 1,
+      "4:2": 2,
+      "4:0": 3,
+      "4:3": 4,
+      "4:6": 5,
+      "4:7": 6,
+      "4:5": 7,
+      "5:2": 0,
+      "5:3": 1,
+      "5:4": 2,
+      "5:1": 3,
+      "5:7": 4,
+      "5:0": 5,
+      "5:5": 6,
+      "5:6": 7,
+      "6:7": 0,
+      "6:2": 1,
+      "6:6": 2,
+      "6:0": 3,
+      "6:3": 4,
+      "6:1": 5,
+      "6:5": 6,
+      "6:4": 7,
+      "7:7": 0,
+      "7:0": 1,
+      "7:2": 2,
+      "7:6": 3,
+      "7:4": 4,
+      "7:5": 5,
+      "7:3": 6,
+      "7:1": 7,
+      "8:1": 0,
+      "8:0": 1,
+      "8:5": 2,
+      "8:6": 3,
+      "8:2": 4,
+      "8:4": 5,
+      "8:3": 6,
+      "8:7": 7,
+      "9:0": 0,
+      "9:6": 1,
+      "9:3": 2,
+      "9:1": 3,
+      "9:2": 4,
+      "9:7": 5,
+      "9:5": 6,
+      "9:4": 7,
+      "10:5": 0,
+      "10:4": 1,
+      "10:7": 2,
+      "10:2": 3,
+      "10:6": 4,
+      "10:0": 5,
+      "10:1": 6,
+      "10:3": 7,
+      "11:3": 0,
+      "11:4": 1,
+      "11:1": 2,
+      "11:0": 3,
+      "11:7": 4,
+      "11:6": 5,
+      "11:5": 6,
+      "11:2": 7,
+      "12:6": 0,
+      "12:1": 1,
+      "12:7": 2,
+      "12:3": 3,
+      "12:2": 4,
+      "12:5": 5,
+      "12:4": 6,
+      "12:0": 7,
+      "13:2": 0,
+      "13:0": 1,
+      "13:1": 2,
+      "13:3": 3,
+      "13:5": 4,
+      "13:7": 5,
+      "13:6": 6,
+      "13:4": 7,
+      "14:4": 0,
+      "14:6": 1,
+      "14:2": 2,
+      "14:5": 3,
+      "14:7": 4,
+      "14:1": 5,
+      "14:3": 6,
+      "14:0": 7,
+      "15:4": 0,
+      "15:7": 1,
+      "15:0": 2,
+      "15:2": 3,
+      "15:1": 4,
+      "15:3": 5,
+      "15:5": 6,
+      "15:6": 7,
+      "16:7": 0,
+      "16:1": 1,
+      "16:3": 2,
+      "16:6": 3,
+      "16:2": 4,
+      "16:0": 5,
+      "16:5": 6,
+      "16:4": 7,
+      "17:7": 0,
+      "17:6": 1,
+      "17:0": 2,
+      "17:5": 3,
+      "17:2": 4,
+      "17:1": 5,
+      "17:4": 6,
+      "17:3": 7,
+      "18:1": 0,
+      "18:6": 1,
+      "18:4": 2,
+      "18:0": 3,
+      "18:7": 4,
+      "18:5": 5,
+      "18:2": 6,
+      "18:3": 7,
+      "19:3": 0,
+      "19:4": 1,
+      "19:6": 2,
+      "19:2": 3,
+      "19:7": 4,
+      "19:1": 5,
+      "19:5": 6,
+      "19:0": 7,
+      "20:2": 0,
+      "20:7": 1,
+      "20:1": 2,
+      "20:5": 3,
+      "20:3": 4,
+      "20:6": 5,
+      "20:4": 6,
+      "20:0": 7,
+      "21:7": 0,
+      "21:6": 1,
+      "21:2": 2,
+      "21:4": 3,
+      "21:3": 4,
+      "21:0": 5,
+      "21:1": 6,
+      "21:5": 7,
+      "22:1": 0,
+      "22:6": 1,
+      "22:7": 2,
+      "22:0": 3,
+      "22:3": 4,
+      "22:5": 5,
+      "22:4": 6,
+      "22:2": 7,
+      "23:4": 0,
+      "23:5": 1,
+      "23:1": 2,
+      "23:2": 3,
+      "23:0": 4,
+      "23:6": 5,
+      "23:7": 6,
+      "23:3": 7,
+      "24:6": 0,
+      "24:3": 1,
+      "24:5": 2,
+      "24:2": 3,
+      "24:1": 4,
+      "24:4": 5,
+      "24:0": 6,
+      "24:7": 7,
+      "25:6": 0,
+      "25:3": 1,
+      "25:7": 2,
+      "25:1": 3,
+      "25:4": 4,
+      "25:0": 5,
+      "25:5": 6,
+      "25:2": 7,
+      "26:7": 0,
+      "26:4": 1,
+      "26:5": 2,
+      "26:2": 3,
+      "26:0": 4,
+      "26:1": 5,
+      "26:3": 6,
+      "26:6": 7,
+      "27:2": 0,
+      "27:1": 1,
+      "27:5": 2,
+      "27:3": 3,
+      "27:7": 4,
+      "27:0": 5,
+      "27:6": 6,
+      "27:4": 7,
+      "28:5": 0,
+      "28:3": 1,
+      "28:4": 2,
+      "28:0": 3,
+      "28:1": 4,
+      "28:2": 5,
+      "28:7": 6,
+      "28:6": 7,
+      "29:1": 0,
+      "29:5": 1,
+      "29:4": 2,
+      "29:0": 3,
+      "29:2": 4,
+      "29:7": 5,
+      "29:6": 6,
+      "29:3": 7,
+      "30:4": 0,
+      "30:0": 1,
+      "30:6": 2,
+      "30:5": 3,
+      "30:3": 4,
+      "30:7": 5,
+      "30:2": 6,
+      "30:1": 7,
+      "31:3": 0,
+      "31:2": 1,
+      "31:4": 2,
+      "31:1": 3,
+      "31:7": 4,
+      "31:5": 5,
+      "31:6": 6,
+      "31:0": 7
+    },
+    "estimated_improvement_pct_min": 37.0,
+    "estimated_improvement_pct_max": 70.0
+  },
+  "generated_at": "2026-05-13T09:07:57.419422Z"
+}

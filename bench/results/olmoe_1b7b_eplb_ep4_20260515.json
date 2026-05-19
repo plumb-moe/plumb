@@ -1,0 +1,37 @@
+{
+  "model": "allenai/OLMoE-1B-7B-0924",
+  "tp": 4,
+  "ep": 4,
+  "concurrency": 8,
+  "n_per_phase": 200,
+  "snapshot_expert_slots": 1017,
+  "snapshot_peak_imbalance": 6.74,
+  "n_expert_moves": 772,
+  "default": {
+    "n": 200,
+    "errors": 0,
+    "mean_ms": 45.68733849446289,
+    "p50_ms": 33.116152975708246,
+    "p90_ms": 46.369186020456254,
+    "p95_ms": 52.836393006145954,
+    "p99_ms": 320.4543530009687,
+    "throughput_rps": 170.66884497137883
+  },
+  "eplb": {
+    "n": 200,
+    "errors": 0,
+    "mean_ms": 34.334048441960476,
+    "p50_ms": 32.77887392323464,
+    "p90_ms": 35.50831798929721,
+    "p95_ms": 54.201939958147705,
+    "p99_ms": 70.73764700908214,
+    "throughput_rps": 219.2551292889249
+  },
+  "p50_delta_pct": -1.02,
+  "p90_delta_pct": -23.4,
+  "mean_delta_pct": -24.8,
+  "throughput_delta_pct": 28.47,
+  "p99_delta_pct": -77.9,
+  "plan_estimated_pct": 55.1,
+  "plan_confidence": 0.6
+}

@@ -1,0 +1,110 @@
+{
+  "meta": {
+    "model": "allenai/OLMoE-1B-7B-0924",
+    "ep": 2,
+    "date": "2026-05-16",
+    "concurrencies": [
+      8,
+      32
+    ],
+    "n_per_window": 300,
+    "vllm_eplb_config": {
+      "window_size": 1000,
+      "step_interval": 3000,
+      "log_balancedness": true
+    }
+  },
+  "plumb_advisory": null,
+  "results": [
+    {
+      "label": "baseline/c=8",
+      "n_ok": 300,
+      "n_errors": 0,
+      "throughput_rps": 176.993,
+      "elapsed_s": 1.69,
+      "mean_ms": 41.15,
+      "p50_ms": 41.18,
+      "p90_ms": 53.58,
+      "p95_ms": 56.95,
+      "p99_ms": 62.15,
+      "condition": "baseline",
+      "concurrency": 8,
+      "window": "full"
+    },
+    {
+      "label": "baseline/c=32",
+      "n_ok": 300,
+      "n_errors": 0,
+      "throughput_rps": 322.467,
+      "elapsed_s": 0.93,
+      "mean_ms": 83.52,
+      "p50_ms": 83.74,
+      "p90_ms": 115.39,
+      "p95_ms": 121.0,
+      "p99_ms": 132.69,
+      "condition": "baseline",
+      "concurrency": 32,
+      "window": "full"
+    },
+    {
+      "label": "vllm-eplb/c=8/early",
+      "n_ok": 150,
+      "n_errors": 0,
+      "throughput_rps": 154.879,
+      "elapsed_s": 0.97,
+      "mean_ms": 44.47,
+      "p50_ms": 41.92,
+      "p90_ms": 62.56,
+      "p95_ms": 76.17,
+      "p99_ms": 107.76,
+      "condition": "vllm-eplb",
+      "concurrency": 8,
+      "window": "early"
+    },
+    {
+      "label": "vllm-eplb/c=8/late",
+      "n_ok": 150,
+      "n_errors": 0,
+      "throughput_rps": 187.566,
+      "elapsed_s": 0.8,
+      "mean_ms": 38.9,
+      "p50_ms": 40.26,
+      "p90_ms": 47.51,
+      "p95_ms": 48.14,
+      "p99_ms": 55.01,
+      "condition": "vllm-eplb",
+      "concurrency": 8,
+      "window": "late"
+    },
+    {
+      "label": "vllm-eplb/c=32/early",
+      "n_ok": 150,
+      "n_errors": 0,
+      "throughput_rps": 512.629,
+      "elapsed_s": 0.29,
+      "mean_ms": 49.24,
+      "p50_ms": 47.37,
+      "p90_ms": 63.38,
+      "p95_ms": 67.19,
+      "p99_ms": 76.37,
+      "condition": "vllm-eplb",
+      "concurrency": 32,
+      "window": "early"
+    },
+    {
+      "label": "vllm-eplb/c=32/late",
+      "n_ok": 150,
+      "n_errors": 0,
+      "throughput_rps": 481.349,
+      "elapsed_s": 0.31,
+      "mean_ms": 50.3,
+      "p50_ms": 46.98,
+      "p90_ms": 65.79,
+      "p95_ms": 72.73,
+      "p99_ms": 82.03,
+      "condition": "vllm-eplb",
+      "concurrency": 32,
+      "window": "late"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "model": "allenai/OLMoE-1B-7B-0924",
+  "tp": 2,
+  "n_per_phase": 150,
+  "total_requests": 600,
+  "phase_A_recording_on": {
+    "n": 300,
+    "mean_ms": 38.586,
+    "median_ms": 36.015,
+    "p50_ms": 36.015,
+    "p90_ms": 36.774,
+    "p95_ms": 38.369,
+    "p99_ms": 85.77,
+    "stdev_ms": 22.007
+  },
+  "phase_B_recording_off": {
+    "n": 300,
+    "mean_ms": 38.675,
+    "median_ms": 35.708,
+    "p50_ms": 35.708,
+    "p90_ms": 36.431,
+    "p95_ms": 37.945,
+    "p99_ms": 90.031,
+    "stdev_ms": 26.713
+  },
+  "overhead_mean_ms": -0.089,
+  "overhead_pct": -0.23,
+  "overhead_95ci_ms": [
+    -4.014,
+    3.836
+  ],
+  "welch_t": -0.0444,
+  "p_value": 0.785984,
+  "significant_at_p05": false
+}
