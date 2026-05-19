@@ -31,5 +31,3 @@ coverage.xml
 .idea/
 .vscode/
 *.swp
-.pushci/
-pushci.env
