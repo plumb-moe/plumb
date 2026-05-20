@@ -107,7 +107,8 @@ _BLOCK_EXTRACTORS: dict[str, Callable[[Any], torch.Tensor | None]] = {
     # router_logits shape: (num_tokens, num_experts); num_experts=16 Scout, 128 Maverick
     "Llama4TextMoe":            lambda out: out[1] if isinstance(out, tuple) else None,
     # transformers 5.x router-level — OlmoeTopKRouter returns (logits, scores, indices)
-    # OlmoeSparseMoeBlock is NOT listed: in 5.x it returns only hidden states.
+    # OlmoeSparseMoeBlock is NOT listed for 5.x: it returns only hidden states there.
+    # In transformers 4.x, OlmoeSparseMoeBlock returns (hidden, router_logits) — added below.
     "OlmoeTopKRouter":          lambda out: out[0] if isinstance(out, tuple) else None,
     # Phi-3.5-MoE router-level — PhimoeTopKRouter returns (logits, scores, indices).
     # PhimoeSparseMoeBlock is NOT listed: forward() returns only hidden states (logits discarded).
@@ -122,6 +123,12 @@ _BLOCK_EXTRACTORS: dict[str, Callable[[Any], torch.Tensor | None]] = {
     "Qwen2MoeSparseMoeBlock":  lambda out: out[1] if isinstance(out, tuple) else None,
     "Qwen3MoeSparseMoeBlock":  lambda out: out[1] if isinstance(out, tuple) else None,
 }
+
+# In transformers 4.x, OlmoeSparseMoeBlock.forward() returns (hidden, router_logits).
+# In transformers 5.x it returns only hidden states — OlmoeTopKRouter handles that case.
+_tx_major, _ = detect_transformers_version()
+if _tx_major < 5:
+    _BLOCK_EXTRACTORS["OlmoeSparseMoeBlock"] = lambda out: out[1] if isinstance(out, tuple) else None
 
 # Router-level fallback dict (kept for future models with the same pattern).
 _ROUTER_EXTRACTORS: dict[str, Callable[[Any], torch.Tensor | None]] = {}
