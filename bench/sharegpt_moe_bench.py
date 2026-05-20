@@ -145,6 +145,8 @@ def start_server(
         cmd += ["--tokenizer-mode", tokenizer_mode]
     env = os.environ.copy()
     env["VLLM_USE_V1"] = "0"  # v1 engine has ABI issues with pip torch builds
+    env["NCCL_P2P_DISABLE"] = "1"  # RTX 3060 consumer GPUs lack P2P support
+    env["NCCL_IB_DISABLE"] = "1"   # no InfiniBand on Vast.ai PCIe nodes
     if extra_env:
         env.update(extra_env)
     print(f"  Launching: {' '.join(cmd[:8])} ...", flush=True)

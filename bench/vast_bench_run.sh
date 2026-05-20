@@ -235,6 +235,11 @@ echo "--- Installing Python packages ---"
 pip install vllm 2>/dev/null || true
 pip install git+https://github.com/plumb-moe/plumb.git 2>/dev/null || true
 
+# nvidia-nccl-cu13 (NCCL 2.28.9) requires CUDA 12.8+ runtime but torch ships cu12.
+# Remove it and force cu12 (2.21.5) which matches torch's internal NCCL version.
+pip uninstall -y nvidia-nccl-cu13 2>/dev/null || true
+pip install 'nvidia-nccl-cu12==2.21.5' --force-reinstall --quiet 2>/dev/null || true
+
 echo "--- Downloading ShareGPT dataset ---"
 python3 -c "
 import urllib.request, os
