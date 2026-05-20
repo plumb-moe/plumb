@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- String -->
+  <line x1="60" y1="8" x2="60" y2="62" stroke="#1e40af" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Plumb bob body -->
+  <path d="M60 95 L44 67 Q44 62 60 62 Q76 62 76 67 Z" fill="#1d4ed8"/>
+  <!-- Plumb bob highlight -->
+  <path d="M60 87 L50 68 Q50 65 60 65 Q62 65 64 66 Z" fill="#3b82f6" opacity="0.5"/>
+  <!-- Tip dot -->
+  <circle cx="60" cy="96" r="3" fill="#1e40af"/>
+  <!-- Top anchor ring -->
+  <circle cx="60" cy="8" r="4" fill="none" stroke="#1e40af" stroke-width="2.2"/>
+  <!-- Center mark lines on bob -->
+  <line x1="52" y1="74" x2="68" y2="74" stroke="#93c5fd" stroke-width="1" opacity="0.7"/>
+</svg>

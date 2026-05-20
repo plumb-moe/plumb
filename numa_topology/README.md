@@ -1,6 +1,10 @@
 # numa-topology
 
-Discover GPU NUMA affinity via sysfs. Zero dependencies beyond stdlib and `nvidia-smi`.
+[![PyPI](https://img.shields.io/pypi/v/numa-topology.svg?style=flat-square)](https://pypi.org/project/numa-topology/)
+[![Python](https://img.shields.io/pypi/pyversions/numa-topology.svg?style=flat-square)](https://pypi.org/project/numa-topology/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue?style=flat-square)](../LICENSE)
+
+Reads GPU NUMA affinity from Linux sysfs. Zero dependencies beyond stdlib and `nvidia-smi`.
 
 ```
 pip install numa-topology
@@ -8,9 +12,9 @@ pip install numa-topology
 
 ## Why
 
-On multi-socket servers (e.g. dual EPYC + 8× H100), GPU memory access latency depends
+On multi-socket servers (dual EPYC + 8x H100, for example), GPU memory access latency depends
 on whether the CPU issuing the transfer is on the same NUMA node as the GPU. Wrong
-placement can cost 15–30% throughput silently.
+placement can silently cost 15-30% throughput.
 
 `numa-topology` reads `/sys/bus/pci/devices/<pci-id>/numa_node` for each GPU so your
 inference engine can make topology-aware decisions without pulling in a heavy dependency.
@@ -33,7 +37,7 @@ topology.same_numa(0, 1)   # True
 topology.same_numa(0, 4)   # False
 ```
 
-Works without PyTorch — falls back to parsing `nvidia-smi` for the GPU count.
+Falls back to parsing `nvidia-smi` for the GPU count when PyTorch is not installed.
 
 ## vLLM
 
@@ -113,10 +117,10 @@ topology = Topology.flat(4)   # explicit flat fallback
 
 ## Requirements
 
-- Python ≥ 3.10
+- Python 3.10+
 - Linux with sysfs (`/sys/bus/pci/devices/`)
 - `nvidia-smi` on `$PATH`
-- PyTorch is **optional** — the package falls back to `nvidia-smi` for GPU discovery
+- PyTorch is **optional** (the package falls back to `nvidia-smi` for GPU discovery)
 
 ## License
 

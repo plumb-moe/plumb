@@ -31,3 +31,7 @@ coverage.xml
 .idea/
 .vscode/
 *.swp
+
+# internal CI tooling (not part of OSS)
+pushci.env
+.pushci/
