@@ -189,8 +189,73 @@ def chart_hook_overhead():
     print("wrote hook_overhead.png")
 
 
+# ── Chart 4: Expert imbalance comparison ─────────────────────────────────────
+
+def chart_imbalance_comparison():
+    models = ["OLMoE-1B-7B\n(top-8 routing)", "DeepSeek-V2-Lite\n(top-2 routing)"]
+    imbalances = [6.74, 1.50]
+    colors = [BLUE, GRAY]
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    bars = ax.bar(models, imbalances, color=colors, width=0.45, zorder=3)
+
+    # threshold line
+    ax.axhline(3.0, color=RED, lw=1.8, ls="--", zorder=4)
+    ax.text(1.35, 3.12, "imbalance gate (3×)", color=RED, fontsize=9, va="bottom")
+
+    for bar, v in zip(bars, imbalances):
+        ax.text(
+            bar.get_x() + bar.get_width() / 2, v + 0.1,
+            f"{v}×", ha="center", va="bottom", fontsize=12, fontweight="bold",
+            color=bar.get_facecolor(),
+        )
+
+    ax.set_ylabel("Peak imbalance ratio  (max / mean)", fontsize=10)
+    ax.set_title("Expert Load Imbalance: OLMoE vs DeepSeek-V2-Lite\n(100 prompts, top-k routing)", fontsize=11)
+    ax.set_ylim(0, 8.5)
+
+    # annotation boxes
+    ax.text(0, 0.4, "EPLB beneficial", ha="center", fontsize=9, color=BLUE,
+            bbox=dict(boxstyle="round,pad=0.25", fc="#eff6ff", ec="none"))
+    ax.text(1, 0.4, "EPLB harmful", ha="center", fontsize=9, color="#6b7280",
+            bbox=dict(boxstyle="round,pad=0.25", fc="#f3f4f6", ec="none"))
+
+    fig.tight_layout()
+    fig.savefig(OUT / "imbalance_comparison.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("wrote imbalance_comparison.png")
+
+
+# ── Chart 5: Test coverage donut ─────────────────────────────────────────────
+
+def chart_test_coverage():
+    sizes = [41, 3, 3]
+    labels = ["Fully verified\n41 claims (87%)", "Partial\n3 claims (6%)", "Not tested\n3 claims (6%)"]
+    colors = ["#16a34a", "#f59e0b", "#e5e7eb"]
+    explode = (0.04, 0, 0)
+
+    fig, ax = plt.subplots(figsize=(5.5, 4.5))
+    wedges, texts = ax.pie(
+        sizes, labels=labels, colors=colors, explode=explode,
+        startangle=90, counterclock=False,
+        wedgeprops=dict(width=0.55, edgecolor="white", linewidth=2),
+        textprops=dict(fontsize=9.5),
+    )
+
+    ax.text(0, 0, "47\nclaims", ha="center", va="center", fontsize=13, fontweight="bold", color=DARK)
+    ax.set_title("plumb Test Coverage\n(plumb/tests/ + smoke_test.py)", fontsize=11)
+
+    fig.tight_layout()
+    fig.savefig(OUT / "test_coverage.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print("wrote test_coverage.png")
+
+
 if __name__ == "__main__":
     chart_throughput_sweep()
     chart_latency()
     chart_hook_overhead()
+    chart_imbalance_comparison()
+    chart_test_coverage()
     print("done — charts in", OUT)
