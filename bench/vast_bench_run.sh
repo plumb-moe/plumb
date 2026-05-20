@@ -7,7 +7,7 @@ set -euo pipefail
 # Defaults
 # ---------------------------------------------------------------------------
 MODEL="mistralai/Mixtral-8x7B-Instruct-v0.1"
-TP=2
+TP=4
 DRY_RUN=false
 VAST_API_KEY="${VAST_API_KEY:-}"
 if [[ -z "$VAST_API_KEY" ]]; then
@@ -110,9 +110,9 @@ fi
 # 3. Find best offer
 # ---------------------------------------------------------------------------
 echo ""
-echo "=== Searching for GPU offers (2x GPU, >=40GB VRAM each) ==="
+echo "=== Searching for GPU offers (4x GPU, >=10GB VRAM each, sub \$0.55/hr) ==="
 OFFERS_JSON=$(vastai search offers \
-  'num_gpus=2 gpu_ram>=40 cuda_vers>=11.8 disk_space>=200 inet_up>=500' \
+  'num_gpus=4 gpu_ram>=10 cuda_vers>=11.8 disk_space>=150 dph<=0.55' \
   --order dph_total --raw 2>/dev/null || echo "[]")
 
 OFFER_COUNT=$(echo "$OFFERS_JSON" | jq 'length')
@@ -169,10 +169,10 @@ echo "Rented instance: $INSTANCE_ID"
 # 5. Wait for SSH
 # ---------------------------------------------------------------------------
 echo ""
-echo "=== Waiting for instance to reach running state (timeout: 5 min) ==="
+echo "=== Waiting for instance SSH (timeout: 2 min — Vast servers are unreliable, destroy fast) ==="
 SSH_HOST=""
 SSH_PORT=""
-DEADLINE=$(( $(date +%s) + 300 ))
+DEADLINE=$(( $(date +%s) + 120 ))
 
 while [[ $(date +%s) -lt $DEADLINE ]]; do
   if $DRY_RUN; then
@@ -190,10 +190,9 @@ while [[ $(date +%s) -lt $DEADLINE ]]; do
   echo "  status=$STATUS  host=$SSH_HOST  port=$SSH_PORT"
 
   if [[ "$STATUS" == "running" && -n "$SSH_HOST" && -n "$SSH_PORT" ]]; then
-    # Try connecting
     if ssh -o StrictHostKeyChecking=no \
-           -o ConnectTimeout=10 \
-           -o ServerAliveInterval=30 \
+           -o ConnectTimeout=8 \
+           -o ServerAliveInterval=15 \
            -o BatchMode=yes \
            -p "$SSH_PORT" \
            "root@$SSH_HOST" \
@@ -204,13 +203,13 @@ while [[ $(date +%s) -lt $DEADLINE ]]; do
   fi
 
   if [[ $(date +%s) -ge $DEADLINE ]]; then
-    echo "ERROR: SSH not available after 5 minutes. Destroying instance." >&2
+    echo "ERROR: SSH not available after 2 minutes — dead machine. Destroying and aborting." >&2
     vastai destroy instance "$INSTANCE_ID" --api-key "$VAST_API_KEY" || true
     INSTANCE_ID=""
     exit 1
   fi
 
-  sleep 15
+  sleep 10
 done
 
 # ---------------------------------------------------------------------------
@@ -282,10 +281,11 @@ PYTHONPATH=/opt/plumb-oss python bench/sharegpt_moe_bench.py \
   --model "$MODEL" \
   --tp "$TP" \
   --num-requests 500 \
-  --concurrency 1,4,16,64 \
+  --concurrency 1,4,16,32 \
   --sharegpt-path /tmp/sharegpt.json \
   --output-dir /tmp/bench-results \
-  --skip-phase2
+  --skip-phase2 \
+  --trust-remote-code
 
 echo "Benchmark done. Results in /tmp/bench-results/"
 ls -lh /tmp/bench-results/

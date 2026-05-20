@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import queue
+import random
 import statistics
 import subprocess
 import sys
@@ -35,8 +36,8 @@ from pathlib import Path
 # ── Optional rich import ──────────────────────────────────────────────────────
 try:
     from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, TextColumn  # noqa: F401
     from rich.table import Table
-    from rich.progress import Progress, SpinnerColumn, TextColumn
     _console = Console()
     _rich = True
 except ImportError:
@@ -347,10 +348,10 @@ def run_profiling_pass(
         return None
 
     try:
-        from plumb.hook import ProfilingHooks
         from plumb.counter import ActivationCounter
-        from plumb.topology import Topology
+        from plumb.hook import ProfilingHooks
         from plumb.report.generator import generate_report
+        from plumb.topology import Topology
     except ImportError as exc:
         print(f"ERROR: plumb not installed: {exc}", file=sys.stderr)
         return None
@@ -398,6 +399,149 @@ def run_profiling_pass(
         num_gpus=1,
     )
     return report
+
+
+# ── Placement scenario analysis ───────────────────────────────────────────────
+
+def _greedy_placement(
+    sorted_pairs: list[tuple[tuple[int, int], float]],
+    num_experts: int,
+    num_gpus: int,
+    maximize: bool,
+) -> dict[int, int]:
+    assignment: dict[int, int] = {}
+    gpu_load = [0] * num_gpus
+    per_gpu = max(1, (num_experts + num_gpus - 1) // num_gpus)
+
+    def available() -> list[int]:
+        return [g for g in range(num_gpus) if gpu_load[g] < per_gpu]
+
+    def assign(e: int, g: int) -> None:
+        assignment[e] = g
+        gpu_load[g] += 1
+
+    for (a, b), _ in sorted_pairs:
+        a_done = a in assignment
+        b_done = b in assignment
+        avail = available()
+        if not avail:
+            break
+        if not a_done and not b_done:
+            assign(a, avail[0])
+            avail = available()
+            if not avail:
+                continue
+            if maximize:
+                diff = [g for g in avail if g != assignment[a]]
+                assign(b, diff[0] if diff else avail[0])
+            else:
+                same = [g for g in avail if g == assignment[a]]
+                assign(b, same[0] if same else avail[0])
+        elif a_done and not b_done:
+            if maximize:
+                diff = [g for g in avail if g != assignment[a]]
+                assign(b, diff[0] if diff else avail[0])
+            else:
+                same = [g for g in avail if g == assignment[a]]
+                assign(b, same[0] if same else avail[0])
+        elif b_done and not a_done:
+            if maximize:
+                diff = [g for g in avail if g != assignment[b]]
+                assign(a, diff[0] if diff else avail[0])
+            else:
+                same = [g for g in avail if g == assignment[b]]
+                assign(a, same[0] if same else avail[0])
+
+    for e in range(num_experts):
+        if e not in assignment:
+            avail = available()
+            if avail:
+                assign(e, avail[0])
+            else:
+                g = min(range(num_gpus), key=lambda g: gpu_load[g])
+                assign(e, g)
+                gpu_load[g] += 1
+    return assignment
+
+
+def _cross_gpu_rate(
+    assignment: dict[int, int],
+    counts: dict[tuple[int, int], float],
+) -> float:
+    total = sum(counts.values())
+    if total == 0:
+        return 0.0
+    cross = sum(cnt for (a, b), cnt in counts.items() if assignment.get(a) != assignment.get(b))
+    return cross / total
+
+
+def compute_placement_scenarios(report, num_gpus: int) -> dict:
+    """
+    Given a plumb ProfileReport, compute expected cross-GPU dispatch rates for
+    three expert-placement strategies (worst / random / optimized) using the
+    co-activation pairs collected during profiling.  No extra GPU time required.
+    """
+    if report is None:
+        return {}
+    coact = getattr(report, "coactivation", None)
+    if coact is None:
+        return {}
+    coact_layers = getattr(coact, "layers", None) or []
+    if not coact_layers:
+        return {}
+
+    layer_worst: list[float] = []
+    layer_rand: list[float] = []
+    layer_opt: list[float] = []
+
+    for lc in coact_layers:
+        pairs_raw = getattr(lc, "top_misplaced_pairs", None) or []
+        if not pairs_raw:
+            continue
+        all_ids: set[int] = set()
+        counts: dict[tuple[int, int], float] = {}
+        for p in pairs_raw:
+            a = getattr(p, "expert_a", None)
+            b = getattr(p, "expert_b", None)
+            cnt = float(getattr(p, "coactivation_count", 0) or 0)
+            if a is None or b is None:
+                continue
+            all_ids |= {a, b}
+            key = (min(a, b), max(a, b))
+            counts[key] = counts.get(key, 0) + cnt
+        if not all_ids:
+            continue
+        n = max(all_ids) + 1
+        actual_gpus = min(num_gpus, n)
+        if actual_gpus < 2:
+            continue
+        sorted_pairs = sorted(counts.items(), key=lambda x: -x[1])
+
+        worst_assign = _greedy_placement(sorted_pairs, n, actual_gpus, maximize=True)
+        layer_worst.append(_cross_gpu_rate(worst_assign, counts))
+
+        opt_assign = _greedy_placement(sorted_pairs, n, actual_gpus, maximize=False)
+        layer_opt.append(_cross_gpu_rate(opt_assign, counts))
+
+        rand_rates: list[float] = []
+        experts = list(range(n))
+        for _ in range(50):
+            shuffled = experts[:]
+            random.shuffle(shuffled)
+            rand_assign = {e: (i * actual_gpus) // n for i, e in enumerate(shuffled)}
+            rand_rates.append(_cross_gpu_rate(rand_assign, counts))
+        layer_rand.append(statistics.mean(rand_rates))
+
+    def _avg(vals: list[float]) -> float | None:
+        return round(statistics.mean(vals), 4) if vals else None
+
+    return {
+        "num_gpus": num_gpus,
+        "worst_cross_gpu_rate": _avg(layer_worst),
+        "random_cross_gpu_rate": _avg(layer_rand),
+        "optimized_cross_gpu_rate": _avg(layer_opt),
+        "layers_analyzed": len(layer_worst),
+    }
 
 
 # ── Output helpers ────────────────────────────────────────────────────────────
@@ -644,6 +788,22 @@ def main() -> None:
         print(f"  Max imbalance ratio : {summ.get('max_imbalance_ratio', 0):.3f}")
         print(f"  Worst layer         : {summ.get('worst_layer_id', 'n/a')}")
 
+    placement_scenarios = compute_placement_scenarios(report, num_gpus=args.tp)
+    if placement_scenarios.get("layers_analyzed", 0) > 0:
+        w = placement_scenarios.get("worst_cross_gpu_rate")
+        r = placement_scenarios.get("random_cross_gpu_rate")
+        o = placement_scenarios.get("optimized_cross_gpu_rate")
+        print(f"  Placement scenarios ({args.tp} GPUs, "
+              f"{placement_scenarios['layers_analyzed']} layers):")
+        if w is not None:
+            print(f"    Worst     cross-GPU dispatch: {w:.1%}")
+        if r is not None:
+            print(f"    Random    cross-GPU dispatch: {r:.1%}")
+        if o is not None:
+            print(f"    Optimized cross-GPU dispatch: {o:.1%}")
+        if w and o:
+            print(f"    Headroom  (worst→opt)       : -{(w - o) / w * 100:.1f}%")
+
     # ── Step 3: Phase 1 — Baseline benchmark ─────────────────────────────────
     print("\n[3/5] Phase 1 — Baseline benchmark...")
     max_c = max(concurrency_levels)
@@ -776,6 +936,7 @@ def main() -> None:
             getattr(getattr(report, "placement", None), "estimated_improvement_pct", None)
             if report else None
         ),
+        "placement_scenarios": placement_scenarios if placement_scenarios else None,
     }
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
     print(f"  Summary saved → {output_dir / 'summary.json'}")

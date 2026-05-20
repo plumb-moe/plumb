@@ -15,13 +15,12 @@ import json
 import sys
 import warnings
 from pathlib import Path
-from typing import Any
 
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import numpy as np
 
 # ── Palette ───────────────────────────────────────────────────────────────────
@@ -342,7 +341,6 @@ def _lognormal_cdf_from_quantiles(
     """
     try:
         from scipy import stats as sp_stats  # type: ignore[import]
-        from scipy.optimize import brentq  # type: ignore[import]
 
         # Fit mu / sigma using p50 and p95
         mu = np.log(p50)
@@ -525,6 +523,77 @@ def chart_dispatch_rate(plumb: dict, phase2_plumb: dict | None, out_dir: Path) -
     return True
 
 
+# ── Chart 6: Placement scenario comparison ────────────────────────────────────
+
+_ORANGE = "#f97316"
+
+
+def chart_placement_scenarios(summary: dict | None, out_dir: Path) -> bool:
+    """
+    Horizontal bar chart: worst / random / plumb-optimized cross-GPU dispatch rates.
+    Reads placement_scenarios from summary.json.
+    """
+    if not summary:
+        print("  [skip] placement_scenarios.png — summary.json not found")
+        return False
+    scenarios = summary.get("placement_scenarios")
+    if not scenarios:
+        print("  [skip] placement_scenarios.png — no placement_scenarios in summary.json")
+        return False
+
+    worst = scenarios.get("worst_cross_gpu_rate")
+    rand = scenarios.get("random_cross_gpu_rate")
+    opt = scenarios.get("optimized_cross_gpu_rate")
+
+    if worst is None or rand is None or opt is None:
+        print("  [skip] placement_scenarios.png — placement_scenarios data incomplete")
+        return False
+
+    labels = ["Adversarial\n(worst case)", "Random\n(vLLM default)", "Plumb\n(co-activation-aware)"]
+    values = [worst, rand, opt]
+    colors = [_WARM_RED, _ORANGE, _FOREST_GREEN]
+    num_gpus = scenarios.get("num_gpus", "?")
+    layers = scenarios.get("layers_analyzed", "?")
+
+    fig, ax = plt.subplots(figsize=(9, 4))
+    y = np.arange(len(labels))
+    bars = ax.barh(y, [v * 100 for v in values], color=colors, height=0.5, zorder=3)
+
+    for bar, val, color in zip(bars, values, colors):
+        ax.text(
+            bar.get_width() + 0.8, bar.get_y() + bar.get_height() / 2,
+            f"{val:.1%}", va="center", fontsize=12, fontweight="bold", color=color,
+        )
+
+    # Improvement annotation: worst → optimized
+    if worst > 0:
+        abs_drop = (worst - opt) / worst * 100
+        ax.annotate(
+            f"−{abs_drop:.1f}% cross-GPU dispatch\n(worst → plumb)",
+            xy=(opt * 100, 2), xytext=(worst * 100 * 0.6, 2.42),
+            fontsize=9, color=_FOREST_GREEN, fontweight="bold",
+            arrowprops=dict(arrowstyle="->", color=_FOREST_GREEN, lw=1.5),
+        )
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels, fontsize=11)
+    ax.set_xlabel("Cross-GPU dispatch rate (%)", fontsize=11)
+    ax.set_xlim(0, max(v * 100 for v in values) * 1.35)
+    ax.set_title(
+        f"Expert Placement Strategies — Cross-GPU Dispatch Rate\n"
+        f"({num_gpus} GPUs · {layers} MoE layers analyzed)",
+        fontsize=12, fontweight="bold", pad=10,
+    )
+    ax.invert_yaxis()
+    _credit(ax)
+    fig.tight_layout()
+    dest = out_dir / "placement_scenarios.png"
+    fig.savefig(dest, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  [ok]   {dest.name}")
+    return True
+
+
 # ── CLI entry point ───────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -560,7 +629,7 @@ def main() -> None:
     # Suppress matplotlib font warnings that clutter output
     warnings.filterwarnings("ignore", category=UserWarning, module="matplotlib")
 
-    print(f"\nplumb-oss chart generator")
+    print("\nplumb-oss chart generator")
     print(f"  Results : {results_dir}")
     print(f"  Output  : {out_dir}")
     print(f"  Style   : {args.style}")
@@ -569,6 +638,7 @@ def main() -> None:
     plumb = _load_json(results_dir / "plumb_report.json") or {}
     phase1 = _load_json(results_dir / "phase1_benchmark.json")
     phase2 = _load_json(results_dir / "phase2_benchmark.json")
+    summary = _load_json(results_dir / "summary.json")
     # phase2 plumb report is not produced by the bench script today; reserved for future use
     phase2_plumb: dict | None = None
 
@@ -604,6 +674,12 @@ def main() -> None:
         generated.append("dispatch_rate_comparison.png")
     else:
         skipped.append("dispatch_rate_comparison.png")
+
+    # ── Chart 6 ───────────────────────────────────────────────────────────────
+    if chart_placement_scenarios(summary, out_dir):
+        generated.append("placement_scenarios.png")
+    else:
+        skipped.append("placement_scenarios.png")
 
     # ── Summary ───────────────────────────────────────────────────────────────
     print()
