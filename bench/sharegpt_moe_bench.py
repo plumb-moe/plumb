@@ -127,6 +127,7 @@ def start_server(
     model: str, tp: int, port: int, output_dir: Path,
     extra_env: dict | None = None, max_num_seqs: int = 256,
     tokenizer: str | None = None,
+    tokenizer_mode: str | None = None,
 ) -> subprocess.Popen:
     log = output_dir / "vllm_server.log"
     cmd = [
@@ -140,6 +141,8 @@ def start_server(
         "--max-num-seqs", str(max_num_seqs),
         "--max-model-len", "4096",
     ]
+    if tokenizer_mode:
+        cmd += ["--tokenizer-mode", tokenizer_mode]
     env = os.environ.copy()
     if extra_env:
         env.update(extra_env)
@@ -342,6 +345,7 @@ def run_profiling_pass(
     prompts: list[dict],
     num_profile: int = 200,
     tokenizer: str | None = None,
+    tokenizer_mode: str | None = None,
 ) -> tuple[object, object, float]:
     """Spawn a TP=1 LLM, attach plumb hooks, run prompts.
 
@@ -368,7 +372,7 @@ def run_profiling_pass(
 
     t_start = time.time()
     try:
-        llm = LLM(
+        llm_kwargs: dict = dict(
             model=model_name,
             tokenizer=tokenizer or model_name,
             dtype="float16",
@@ -377,6 +381,9 @@ def run_profiling_pass(
             gpu_memory_utilization=0.85,
             enforce_eager=True,
         )
+        if tokenizer_mode:
+            llm_kwargs["tokenizer_mode"] = tokenizer_mode
+        llm = LLM(**llm_kwargs)
     except Exception as exc:
         print(f"ERROR: failed to load LLM for profiling: {exc}", file=sys.stderr)
         return None, None, 0.0
@@ -844,7 +851,11 @@ def main() -> None:
     ap.add_argument("--num-profile", type=int, default=200,
                     help="Requests for the plumb profiling pass (default: 200)")
     ap.add_argument("--tokenizer", default=None,
-                    help="Tokenizer HF ID (default: model name with -AWQ/-awq suffix stripped)")
+                    help="Tokenizer HF ID (default: same as --model)")
+    ap.add_argument("--tokenizer-mode", default=None,
+                    help="vLLM tokenizer mode: auto|slow|mistral (default: auto). "
+                         "Use 'mistral' for Mixtral/Mistral AWQ models to avoid "
+                         "LlamaTokenizer compatibility issues.")
     ap.add_argument("--trust-remote-code", action="store_true")
     ap.add_argument(
         "--hetero-sim", action="store_true",
@@ -894,6 +905,7 @@ def main() -> None:
         prompts=prompts,
         num_profile=args.num_profile,
         tokenizer=args.tokenizer,
+        tokenizer_mode=args.tokenizer_mode,
     )
 
     report_dict = _serialize_report(report) if report else {}
@@ -949,7 +961,7 @@ def main() -> None:
     proc = start_server(
         model=args.model, tp=args.tp, port=args.port,
         output_dir=output_dir, max_num_seqs=max_c * 2,
-        tokenizer=args.tokenizer,
+        tokenizer=args.tokenizer, tokenizer_mode=args.tokenizer_mode,
     )
     print(f"  Server PID {proc.pid} — waiting for ready (timeout 600s)...", flush=True)
     try:
@@ -1015,6 +1027,7 @@ def main() -> None:
             model=args.model, tp=args.tp, port=args.port,
             output_dir=output_dir, extra_env=placement_env or None,
             max_num_seqs=max_c * 2, tokenizer=args.tokenizer,
+            tokenizer_mode=args.tokenizer_mode,
         )
         print(f"  Server PID {proc2.pid} — waiting for ready...", flush=True)
         try:
