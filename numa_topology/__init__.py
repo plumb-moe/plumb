@@ -19,7 +19,13 @@ import subprocess
 from pathlib import Path
 
 __version__ = "0.1.0"
-__all__ = ["Topology"]
+__all__ = ["Topology", "GPUCapability", "HeterogeneousTopology", "discover_gpu_capabilities"]
+
+from .gpu_capabilities import (  # noqa: E402
+    GPUCapability,
+    HeterogeneousTopology,
+    discover_gpu_capabilities,
+)
 
 logger = logging.getLogger(__name__)
 
