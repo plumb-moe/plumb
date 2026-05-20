@@ -126,11 +126,13 @@ def load_sharegpt_prompts(
 def start_server(
     model: str, tp: int, port: int, output_dir: Path,
     extra_env: dict | None = None, max_num_seqs: int = 256,
+    tokenizer: str | None = None,
 ) -> subprocess.Popen:
     log = output_dir / "vllm_server.log"
     cmd = [
         sys.executable, "-m", "vllm.entrypoints.openai.api_server",
         "--model", model,
+        "--tokenizer", tokenizer or model,
         "--tensor-parallel-size", str(tp),
         "--dtype", "float16",
         "--port", str(port),
@@ -339,6 +341,7 @@ def run_profiling_pass(
     model_name: str,
     prompts: list[dict],
     num_profile: int = 200,
+    tokenizer: str | None = None,
 ) -> tuple[object, object, float]:
     """Spawn a TP=1 LLM, attach plumb hooks, run prompts.
 
@@ -367,6 +370,7 @@ def run_profiling_pass(
     try:
         llm = LLM(
             model=model_name,
+            tokenizer=tokenizer or model_name,
             dtype="float16",
             tensor_parallel_size=1,
             max_model_len=2048,
@@ -839,6 +843,8 @@ def main() -> None:
                     help="Warmup requests before each measurement phase (default: 40)")
     ap.add_argument("--num-profile", type=int, default=200,
                     help="Requests for the plumb profiling pass (default: 200)")
+    ap.add_argument("--tokenizer", default=None,
+                    help="Tokenizer HF ID (default: model name with -AWQ/-awq suffix stripped)")
     ap.add_argument("--trust-remote-code", action="store_true")
     ap.add_argument(
         "--hetero-sim", action="store_true",
@@ -847,6 +853,9 @@ def main() -> None:
              "without needing real mixed-GPU hardware.",
     )
     args = ap.parse_args()
+
+    if args.tokenizer is None:
+        args.tokenizer = args.model.replace("-AWQ", "").replace("-awq", "")
 
     concurrency_levels = [int(c.strip()) for c in args.concurrency.split(",")]
 
@@ -884,6 +893,7 @@ def main() -> None:
         model_name=args.model,
         prompts=prompts,
         num_profile=args.num_profile,
+        tokenizer=args.tokenizer,
     )
 
     report_dict = _serialize_report(report) if report else {}
@@ -939,6 +949,7 @@ def main() -> None:
     proc = start_server(
         model=args.model, tp=args.tp, port=args.port,
         output_dir=output_dir, max_num_seqs=max_c * 2,
+        tokenizer=args.tokenizer,
     )
     print(f"  Server PID {proc.pid} — waiting for ready (timeout 600s)...", flush=True)
     try:
@@ -1003,7 +1014,7 @@ def main() -> None:
         proc2 = start_server(
             model=args.model, tp=args.tp, port=args.port,
             output_dir=output_dir, extra_env=placement_env or None,
-            max_num_seqs=max_c * 2,
+            max_num_seqs=max_c * 2, tokenizer=args.tokenizer,
         )
         print(f"  Server PID {proc2.pid} — waiting for ready...", flush=True)
         try:
