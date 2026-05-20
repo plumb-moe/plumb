@@ -102,9 +102,19 @@ _BLOCK_EXTRACTORS: dict[str, Callable[[Any], torch.Tensor | None]] = {
     # transformers block-level — return (hidden, router_logits)
     "MixtralSparseMoeBlock":    lambda out: out[1] if isinstance(out, tuple) else None,
     "PhimoeSparseMoeBlock":     lambda out: out[1] if isinstance(out, tuple) else None,
+    # Llama 4 Scout / Maverick (transformers 4.57+) — returns (hidden, router_logits)
+    # Verified against transformers 4.57.6: Llama4TextMoe.forward returns (out, router_logits)
+    # router_logits shape: (num_tokens, num_experts); num_experts=16 Scout, 128 Maverick
+    "Llama4TextMoe":            lambda out: out[1] if isinstance(out, tuple) else None,
     # transformers 5.x router-level — OlmoeTopKRouter returns (logits, scores, indices)
     # OlmoeSparseMoeBlock is NOT listed: in 5.x it returns only hidden states.
     "OlmoeTopKRouter":          lambda out: out[0] if isinstance(out, tuple) else None,
+    # Phi-3.5-MoE router-level — PhimoeTopKRouter returns (logits, scores, indices).
+    # PhimoeSparseMoeBlock is NOT listed: forward() returns only hidden states (logits discarded).
+    "PhimoeTopKRouter":         lambda out: out[0] if isinstance(out, tuple) else None,
+    # Gemma 4 — Gemma4Router is a sibling module on Gemma4DecoderLayer, not a gate attr of Gemma4MoE.
+    # forward() returns a plain logit tensor [T, E]; Gemma4MoE.forward() takes logits as input.
+    "Gemma4Router":             lambda out: out if isinstance(out, torch.Tensor) and out.ndim == 2 else None,
     # NOTE: In vLLM, Qwen2/3MoeSparseMoeBlock returns a plain tensor (not a tuple)
     # so these extractors would return None in that context. In transformers they
     # return (hidden_states, router_logits) like Mixtral, so the extractor works.
@@ -125,6 +135,8 @@ _VLLM_GATE_BLOCKS: dict[str, str] = {
     "DeepseekV3MoE":           "gate",   # vLLM DeepSeek-V3
     "OlmoeMoE":                "gate",
     "PhiMoE":                  "gate",
+    # Llama 4 Scout / Maverick — vLLM uses self.router (ReplicatedLinear), not self.gate
+    "Llama4MoE":               "router",
     "Qwen2MoeSparseMoeBlock":  "gate",   # vLLM Qwen1.5/2-MoE
     "Qwen3MoeSparseMoeBlock":  "gate",   # vLLM Qwen3-MoE
 }
