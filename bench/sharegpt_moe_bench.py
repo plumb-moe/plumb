@@ -855,7 +855,7 @@ def main() -> None:
     args = ap.parse_args()
 
     if args.tokenizer is None:
-        args.tokenizer = args.model.replace("-AWQ", "").replace("-awq", "")
+        args.tokenizer = args.model
 
     concurrency_levels = [int(c.strip()) for c in args.concurrency.split(",")]
 

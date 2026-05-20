@@ -7,6 +7,7 @@ set -euo pipefail
 # Defaults
 # ---------------------------------------------------------------------------
 MODEL="mistralai/Mixtral-8x7B-Instruct-v0.1"
+TOKENIZER=""
 TP=4
 DRY_RUN=false
 VAST_API_KEY="${VAST_API_KEY:-}"
@@ -23,8 +24,9 @@ INSTANCE_ID=""
 # ---------------------------------------------------------------------------
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --model)  MODEL="$2";    shift 2 ;;
-    --tp)     TP="$2";       shift 2 ;;
+    --model)     MODEL="$2";     shift 2 ;;
+    --tokenizer) TOKENIZER="$2"; shift 2 ;;
+    --tp)        TP="$2";        shift 2 ;;
     --dry-run) DRY_RUN=true; shift   ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
@@ -271,14 +273,20 @@ else
       -o ServerAliveInterval=30 \
       -p "$SSH_PORT" \
       "root@$SSH_HOST" \
-      MODEL="$MODEL" TP="$TP" bash << 'BENCH'
+      MODEL="$MODEL" TOKENIZER="$TOKENIZER" TP="$TP" bash << 'BENCH'
 set -e
 cd /opt/plumb-oss
-echo "Starting benchmark: model=$MODEL tp=$TP"
+echo "Starting benchmark: model=$MODEL tp=$TP tokenizer=${TOKENIZER:-<same as model>}"
 mkdir -p /tmp/bench-results
+
+TOKENIZER_ARGS=()
+if [[ -n "$TOKENIZER" ]]; then
+  TOKENIZER_ARGS=(--tokenizer "$TOKENIZER")
+fi
 
 PYTHONPATH=/opt/plumb-oss python bench/sharegpt_moe_bench.py \
   --model "$MODEL" \
+  "${TOKENIZER_ARGS[@]}" \
   --tp "$TP" \
   --num-requests 500 \
   --concurrency 1,4,16,32 \
