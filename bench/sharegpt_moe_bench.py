@@ -347,11 +347,13 @@ def run_profiling_pass(
     num_profile: int = 200,
     tokenizer: str | None = None,
     tokenizer_mode: str | None = None,
+    profile_tp: int = 1,
 ) -> tuple[object, object, float]:
-    """Spawn a TP=1 LLM, attach plumb hooks, run prompts.
+    """Spawn a small-TP LLM, attach plumb hooks, run prompts.
 
     Returns (ProfileReport, ActivationCounter, duration_seconds).
     Counter is needed for hetero re-analysis; report may be None on failure.
+    Use profile_tp>1 when the model is too large to fit on one GPU.
     """
     try:
         from vllm import LLM, SamplingParams  # type: ignore[import]
@@ -369,7 +371,7 @@ def run_profiling_pass(
         return None, None, 0.0
 
     profile_prompts = [p["prompt"] for p in prompts[:num_profile]]
-    print(f"  Spawning TP=1 LLM for profiling ({len(profile_prompts)} prompts)...", flush=True)
+    print(f"  Spawning TP={profile_tp} LLM for profiling ({len(profile_prompts)} prompts)...", flush=True)
 
     os.environ.setdefault("VLLM_USE_V1", "0")  # v1 engine has ABI issues with pip torch builds
 
@@ -379,9 +381,9 @@ def run_profiling_pass(
             model=model_name,
             tokenizer=tokenizer or model_name,
             dtype="float16",
-            tensor_parallel_size=1,
+            tensor_parallel_size=profile_tp,
             max_model_len=2048,
-            gpu_memory_utilization=0.85,
+            gpu_memory_utilization=0.90,
             enforce_eager=True,
         )
         if tokenizer_mode:
@@ -853,6 +855,9 @@ def main() -> None:
                     help="Warmup requests before each measurement phase (default: 40)")
     ap.add_argument("--num-profile", type=int, default=200,
                     help="Requests for the plumb profiling pass (default: 200)")
+    ap.add_argument("--profile-tp", type=int, default=None,
+                    help="Tensor-parallel size for profiling pass. Defaults to 1, "
+                         "but auto-increases to 2 when --tp>=4 to fit large models.")
     ap.add_argument("--tokenizer", default=None,
                     help="Tokenizer HF ID (default: same as --model)")
     ap.add_argument("--tokenizer-mode", default=None,
@@ -870,6 +875,8 @@ def main() -> None:
 
     if args.tokenizer is None:
         args.tokenizer = args.model
+    if args.profile_tp is None:
+        args.profile_tp = 2 if args.tp >= 4 else 1
 
     concurrency_levels = [int(c.strip()) for c in args.concurrency.split(",")]
 
@@ -909,6 +916,7 @@ def main() -> None:
         num_profile=args.num_profile,
         tokenizer=args.tokenizer,
         tokenizer_mode=args.tokenizer_mode,
+        profile_tp=args.profile_tp,
     )
 
     report_dict = _serialize_report(report) if report else {}
