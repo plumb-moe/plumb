@@ -21,13 +21,75 @@ class LayerReport(BaseModel):
     experts: list[ExpertLoad]
 
 
+class GpuStatsReport(BaseModel):
+    per_gpu_sm_utilisation: dict[str, float]
+    imbalance_confirmed: bool
+    sm_samples: dict[str, list[float]] = Field(default_factory=dict)
+
+
 class PlacementReport(BaseModel):
     method: str
-    # JSON-safe key: "layer_id:expert_id"; value is list of target GPU ranks (len>1 = replicated)
     expert_placement: dict[str, list[int]]
     estimated_improvement_pct_min: float
     estimated_improvement_pct_max: float
     estimated_improvement_pct: float
+
+
+class CommunicationCostReport(BaseModel):
+    current_overhead_us: float
+    recommended_overhead_us: float
+    delta_us: float
+    caveat: str | None = None
+
+
+class CoactivationPairReport(BaseModel):
+    expert_a: int
+    expert_b: int
+    coactivation_count: int
+    cross_gpu: bool
+
+
+class CoactivationLayerReport(BaseModel):
+    layer_id: int
+    cross_gpu_coactivation_rate: float
+    estimated_extra_hops_per_pass: float
+    total_coactivation_count: int
+    top_misplaced_pairs: list[CoactivationPairReport]
+
+
+class CoactivationReport(BaseModel):
+    layers: list[CoactivationLayerReport]
+    total_cross_gpu_coactivation_rate: float
+
+
+class GpuCapabilityReport(BaseModel):
+    index: int
+    name: str
+    memory_total_mib: int
+    memory_free_mib: int
+    compute_cap: str
+    max_sm_clock_mhz: int
+    max_mem_clock_mhz: int
+    relative_compute_score: float
+
+
+class HeterogeneousTopologyReport(BaseModel):
+    gpus: list[GpuCapabilityReport]
+    is_homogeneous: bool
+    mixed_vendor: bool
+    compute_score_range: tuple[float, float]
+
+
+class PlacementViolationReport(BaseModel):
+    layer_id: int
+    expert_id: int
+    assigned_gpu: int
+    fastest_gpu: int
+
+
+class HeterogeneousPlacementReport(BaseModel):
+    gpu_expert_counts: dict[str, int]
+    violations: list[PlacementViolationReport]
 
 
 class ProfileReport(BaseModel):
@@ -38,6 +100,11 @@ class ProfileReport(BaseModel):
     layers: list[LayerReport]
     placement: PlacementReport | None = None
     gpu_to_numa: dict[int, int] | None = None
+    gpu_stats: GpuStatsReport | None = None
+    communication_cost: CommunicationCostReport | None = None
+    coactivation: CoactivationReport | None = None
+    heterogeneous_topology: HeterogeneousTopologyReport | None = None
+    heterogeneous_placement: HeterogeneousPlacementReport | None = None
     generated_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
     def summary(self) -> dict[str, Any]:
