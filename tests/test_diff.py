@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -84,8 +83,9 @@ def test_diff_missing_layer_in_b():
 
 def test_diff_ttft_none_when_no_placement():
     """Reports with no placement (empty counter) produce None TTFT estimates."""
-    from plumb.report.schema import ProfileReport, LayerReport, ExpertLoad
     from datetime import datetime, timezone
+
+    from plumb.report.schema import ExpertLoad, LayerReport, ProfileReport
 
     def _bare(model: str) -> ProfileReport:
         return ProfileReport(

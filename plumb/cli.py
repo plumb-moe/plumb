@@ -8,9 +8,9 @@ import time
 from pathlib import Path
 
 import click
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
 
 from .registry import REGISTRY_DIR, deregister, list_sessions
 
@@ -36,8 +36,8 @@ def main(ctx: click.Context) -> None:
 @main.command()
 def detect() -> None:
     """Scan for running MoE inference processes on this machine."""
-    from .scanner import scan_gpu_processes
     from .registry import list_sessions
+    from .scanner import scan_gpu_processes
 
     console.rule("[bold cyan]plumb — detect[/bold cyan]")
     processes = scan_gpu_processes()
@@ -135,8 +135,9 @@ def run(eplb_output: str | None, args: tuple[str, ...], prometheus_port: int | N
 
 def _write_eplb_output(path: str) -> None:
     """Read the most recent session snapshot and write float32 [num_layers, num_experts] .npy."""
-    import numpy as np
     from pathlib import Path as _Path
+
+    import numpy as np
 
     snapshot_data: dict | None = None
 
@@ -404,8 +405,8 @@ def dashboard(report: str | None, pid: int | None, port: int) -> None:
     With --pid:    stream live from a running session.
     No args:       uses the first active session if available, else last report.json.
     """
-    from .registry import list_sessions
     from .dashboard.server import serve
+    from .registry import list_sessions
 
     snapshot_path: str | None = None
 

@@ -271,9 +271,8 @@ class ProfilingHooks:
         seen: dict[int, bool] = {}
         is_last_refs: list[list[bool]] = []
         # ReplicatedLinear returns (output, bias); router logits are at index 0.
-        extractor: Callable[[Any], torch.Tensor | None] = (
-            lambda out: out[0] if isinstance(out, tuple) else out
-        )
+        def extractor(out: Any) -> torch.Tensor | None:
+            return out[0] if isinstance(out, tuple) else out
         for name, module in model.named_modules():
             gate_attr = _VLLM_GATE_BLOCKS.get(type(module).__name__)
             if gate_attr is None:
@@ -335,9 +334,8 @@ class ProfilingHooks:
                 if lid is None or lid in seen:
                     continue
                 seen.add(lid)
-                extractor: Callable[[Any], torch.Tensor | None] = (
-                    lambda out: out if isinstance(out, torch.Tensor) and out.ndim == 2 else None
-                )
+                def extractor(out: Any) -> torch.Tensor | None:  # noqa: E306
+                    return out if isinstance(out, torch.Tensor) and out.ndim == 2 else None
                 hook, is_last = self._block_hook(lid, extractor, top_k)
                 handle = router.register_forward_hook(hook)
                 is_last_refs.append(is_last)

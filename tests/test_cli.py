@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import json
-import os
 import signal
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
@@ -215,7 +214,9 @@ class TestEplbOutput:
     def test_write_eplb_output_shape_and_dtype(self, tmp_path):
         """_write_eplb_output produces a float32 (num_layers, num_experts) .npy file."""
         import time
+
         import numpy as np
+
         from plumb.cli import _write_eplb_output
         from plumb.registry import SessionInfo
 
@@ -254,6 +255,7 @@ class TestEplbOutput:
     def test_eplb_written_even_when_child_exits_via_sigterm(self, tmp_path):
         """_write_eplb_output is called regardless of child exit code (including SIGTERM -15)."""
         import signal
+
         from plumb.cli import run
 
         written: list[str] = []

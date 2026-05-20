@@ -12,9 +12,9 @@ import time
 from pathlib import Path
 
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from plumb.hook import ProfilingHooks, ActivationCounter
+from plumb.hook import ActivationCounter, ProfilingHooks
 
 PROMPTS = [
     "The capital of France is",

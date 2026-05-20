@@ -1,13 +1,9 @@
 from numa_topology import Topology
 from numa_topology.pcie import GPUPCIeInfo, PCIeTopology
-
 from plumb.analysis.comms import (
     CommunicationConstants,
-    CommunicationCostResult,
-    LayerCommunicationStats,
     compute_communication_cost,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixture helpers

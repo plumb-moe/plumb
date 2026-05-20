@@ -9,11 +9,11 @@ import time
 def test_sigterm_forwarded_to_child(tmp_path):
     """SIGTERM sent to the launcher is forwarded to the child; launch() returns promptly."""
     script = tmp_path / "helper.py"
-    script.write_text(textwrap.dedent(f"""\
+    script.write_text(textwrap.dedent("""\
         import sys
         from plumb.launcher import launch
         rc = launch([sys.executable, "-c", "import time; time.sleep(30)"])
-        print(f"rc={{rc}}", flush=True)
+        print(f"rc={rc}", flush=True)
     """))
 
     proc = subprocess.Popen(

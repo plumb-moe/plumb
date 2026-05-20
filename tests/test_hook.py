@@ -1,17 +1,17 @@
 import pytest
+
 torch = pytest.importorskip("torch", reason="torch not installed — install plumb-moe[gpu] to run hook tests")
-import torch.nn as nn
 from unittest.mock import patch
+
+import torch.nn as nn
 
 from plumb.counter import ActivationCounter
 from plumb.hook import (
-    ProfilingHooks,
     _BLOCK_EXTRACTORS,
     _VLLM_GATE_BLOCKS,
+    ProfilingHooks,
     _layer_id_from_path,
     detect_transformers_version,
-    recording_enabled,
-    PAUSE_FILE,
 )
 
 

@@ -1,8 +1,6 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 import numa_topology
 from plumb.topology import Topology, _nvidia_smi_pci, _pci_path_variants, _sysfs_numa
 

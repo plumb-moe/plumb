@@ -3,21 +3,17 @@ from __future__ import annotations
 
 import pytest
 
+from numa_topology.gpu_capabilities import (
+    GPUCapability,
+    HeterogeneousTopology,
+)
 from plumb.analysis.heterogeneous import (
-    ExpertMigration,
-    PlacementViolation,
     VramPressureEvent,
-    VramReplanResult,
     compute_expert_allocation,
     detect_vram_pressure,
     hottest_experts_on_fastest_gpu,
     plan_vram_replan,
 )
-from numa_topology.gpu_capabilities import (
-    GPUCapability,
-    HeterogeneousTopology,
-)
-
 
 # ---------------------------------------------------------------------------
 # Helpers

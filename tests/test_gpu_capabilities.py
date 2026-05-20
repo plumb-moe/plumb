@@ -1,20 +1,16 @@
 """Tests for numa_topology/gpu_capabilities.py — no GPU hardware required."""
 from __future__ import annotations
 
-from unittest.mock import patch, MagicMock
-import subprocess
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from numa_topology.gpu_capabilities import (
-    GPUCapability,
-    HeterogeneousTopology,
-    discover_gpu_capabilities,
-    _parse_csv,
-    _normalise_scores,
     _build_topology,
+    _normalise_scores,
+    _parse_csv,
+    discover_gpu_capabilities,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

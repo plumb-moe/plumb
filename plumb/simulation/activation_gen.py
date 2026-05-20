@@ -33,7 +33,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-
 # ---------------------------------------------------------------------------
 # Known model profiles
 # Statistics derived from DeepSeek V3 TR (arXiv:2602.21626) and

@@ -6,16 +6,17 @@ Tests the full pipeline:
   hook attach → inference → activation recording → imbalance → NUMA stats → detach
 """
 import sys
+
 sys.path = [p for p in sys.path if '/usr/lib/python3' not in p and '/usr/local/lib/python3' not in p]
 
 import torch
 import torch.nn as nn
 
+from plumb.analysis.imbalance import compute_imbalance
+from plumb.analysis.numa import compute_cross_numa
 from plumb.counter import ActivationCounter
 from plumb.hook import ProfilingHooks
 from plumb.topology import Topology
-from plumb.analysis.imbalance import compute_imbalance
-from plumb.analysis.numa import compute_cross_numa
 
 print(f"CUDA available: {torch.cuda.is_available()}")
 if torch.cuda.is_available():
@@ -94,7 +95,7 @@ assert total_activations == 10240, f"expected 10240 activations, got {total_acti
 # Imbalance
 imbalance = compute_imbalance(counter)
 imbalance.sort(key=lambda x: x.imbalance_ratio, reverse=True)
-print(f"\nImbalance per layer (top 5 worst):")
+print("\nImbalance per layer (top 5 worst):")
 for r in imbalance[:5]:
     print(f"  Layer {r.layer_id:2d}: ratio={r.imbalance_ratio:.3f}  max_expert={r.max_expert_id}")
 # Expert 0 is hot — every layer should show significant imbalance

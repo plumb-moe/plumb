@@ -4,7 +4,6 @@ import pytest
 
 from plumb.counter import ActivationCounter
 from plumb.report.generator import generate_report
-from plumb.report.schema import ExpertLoad, LayerReport, PlacementReport, ProfileReport
 from plumb.topology import Topology
 
 

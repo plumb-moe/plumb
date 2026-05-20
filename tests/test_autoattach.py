@@ -10,7 +10,6 @@ import time
 import types
 
 import pytest
-from unittest.mock import patch
 
 
 def _make_torch_stub() -> types.ModuleType:

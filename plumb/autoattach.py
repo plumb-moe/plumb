@@ -72,7 +72,7 @@ def _scan_and_attach() -> None:
 def _attach_session(model, n_moe: int) -> bool:
     from .counter import ActivationCounter
     from .hook import ProfilingHooks
-    from .registry import SessionInfo, REGISTRY_DIR, register
+    from .registry import REGISTRY_DIR, SessionInfo, register
     from .topology import Topology
 
     model_name = type(model).__name__

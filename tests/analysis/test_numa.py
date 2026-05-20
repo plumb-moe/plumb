@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from plumb.analysis.numa import compute_cross_numa, NumaStats
+from plumb.analysis.numa import compute_cross_numa
 from plumb.topology import Topology
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "topologies"

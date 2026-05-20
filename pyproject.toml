@@ -75,6 +75,19 @@ markers = [
 line-length = 100
 target-version = "py310"
 
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]  # line length — enforced by formatter, not a CI blocker
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use single-letter variables in numerical/matrix code and occasionally
+# import fixtures at module level after config.
+"tests/**/*.py" = ["E741", "E402", "F841", "E731"]
+# Benchmark scripts are standalone runners, not library code.
+"bench/**/*.py" = ["E741", "E402", "E731", "E702", "F841"]
+# Smoke test intentionally structures its imports after inline config.
+"smoke_test.py" = ["E402", "F401"]
+
 [tool.mypy]
 python_version = "3.10"
 strict = true

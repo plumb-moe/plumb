@@ -1,0 +1,18 @@
+# Global: every PR requires a review from a maintainer.
+* @plumb-moe/maintainers
+
+# Core hook and counter — these are the trust boundary.
+# A bad change here silently corrupts profiling data.
+/plumb/hook.py @plumb-moe/maintainers
+/plumb/counter.py @plumb-moe/maintainers
+
+# Schema changes break downstream consumers.
+/plumb/report/schema.py @plumb-moe/maintainers
+
+# Topology and placement affect correctness of recommendations.
+/plumb/topology.py @plumb-moe/maintainers
+/plumb/analysis/ @plumb-moe/maintainers
+/numa_topology/ @plumb-moe/maintainers
+
+# Dependency and build config.
+/pyproject.toml @plumb-moe/maintainers

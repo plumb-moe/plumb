@@ -11,14 +11,13 @@ import time
 import numpy as np
 import pytest
 
-from plumb.simulation import from_profile
-from plumb.counter import ActivationCounter
 from plumb.analysis.imbalance import compute_imbalance
 from plumb.analysis.placement import recommend_placement
+from plumb.counter import ActivationCounter
 from plumb.report.generator import generate_report, generate_report_from_snapshot
 from plumb.report.schema import ProfileReport
+from plumb.simulation import from_profile
 from plumb.topology import Topology
-
 
 # ---------------------------------------------------------------------------
 # Helpers

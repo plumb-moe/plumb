@@ -2,7 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from plumb.analysis.placement import recommend_placement, _greedy, _IMPROVEMENT_MIN, _IMPROVEMENT_MAX
+from plumb.analysis.placement import (
+    _IMPROVEMENT_MAX,
+    _IMPROVEMENT_MIN,
+    _greedy,
+    recommend_placement,
+)
 from plumb.counter import ActivationCounter
 from plumb.topology import Topology
 
@@ -88,7 +93,6 @@ def test_improvement_point_estimate_known_ratio():
 
 
 def test_improvement_point_estimate_formula():
-    import numpy as np
     # 8 experts, expert 0 gets all tokens → mean_ratio = 8 → (1 - 1/8)*70 = 61.25
     data = {(0, e): (1000 if e == 0 else 0) for e in range(8)}
     # add 1 to each to avoid zero-division in mean
@@ -128,6 +132,7 @@ def _install_fake_eplb_and_torch(monkeypatch, log2phy_array):
     """
     import sys
     import types
+
     import numpy as np
 
     # Fake torch.tensor — just returns the underlying numpy array since

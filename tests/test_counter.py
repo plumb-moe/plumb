@@ -1,9 +1,6 @@
 import threading
 
-import pytest
-
 from plumb.counter import ActivationCounter
-
 
 # ---------------------------------------------------------------------------
 # recording and accumulation

@@ -124,7 +124,7 @@ def _count_gpus() -> int:
             capture_output=True, text=True, timeout=5,
         )
         if r.returncode == 0:
-            return len([l for l in r.stdout.splitlines() if l.strip()])
+            return len([ln for ln in r.stdout.splitlines() if ln.strip()])
     except Exception:
         pass
 

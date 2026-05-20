@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import pytest
-from prometheus_client import CollectorRegistry, generate_latest
+from prometheus_client import generate_latest
 
 from plumb.counter import ActivationCounter
 from plumb.exporters.prometheus import PrometheusExporter
@@ -172,6 +171,7 @@ def test_stop_sets_event():
 def test_cli_run_prometheus_port_env(monkeypatch):
     """--prometheus-port should be forwarded as SAI_PROFILER_PROMETHEUS_PORT."""
     from click.testing import CliRunner
+
     from plumb.cli import main
 
     captured: dict[str, str] = {}

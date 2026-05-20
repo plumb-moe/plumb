@@ -2,21 +2,15 @@
 from __future__ import annotations
 
 import io
-import subprocess
-import threading
 import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from plumb.exporters.gpu_stats import (
-    GpuSessionStats,
-    PerGpuStats,
+    GpuStatsPoller,
     compute_gpu_session_stats,
 )
-
-from plumb.exporters.gpu_stats import GpuStatsPoller
-
 
 # ---------------------------------------------------------------------------
 # Helpers
