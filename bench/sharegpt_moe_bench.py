@@ -908,16 +908,23 @@ def main() -> None:
         print("ERROR: no usable prompts loaded. Aborting.", file=sys.stderr)
         sys.exit(1)
 
-    # ── Step 2: Plumb profiling pass (TP=1, separate LLM instance) ───────────
-    print("\n[2/5] Running plumb profiling pass (TP=1 LLM)...")
-    report, _profile_counter, _profile_duration = run_profiling_pass(
-        model_name=args.model,
-        prompts=prompts,
-        num_profile=args.num_profile,
-        tokenizer=args.tokenizer,
-        tokenizer_mode=args.tokenizer_mode,
-        profile_tp=args.profile_tp,
-    )
+    # ── Step 2: Plumb profiling pass ─────────────────────────────────────────
+    report: object = None
+    _profile_counter: object = None
+    _profile_duration: float = 0.0
+    if args.num_profile <= 0:
+        print("\n[2/5] Skipping profiling pass (--num-profile 0).")
+    else:
+        print("\n[2/5] Running plumb profiling pass "
+              f"(TP={args.profile_tp} LLM)...")
+        report, _profile_counter, _profile_duration = run_profiling_pass(
+            model_name=args.model,
+            prompts=prompts,
+            num_profile=args.num_profile,
+            tokenizer=args.tokenizer,
+            tokenizer_mode=args.tokenizer_mode,
+            profile_tp=args.profile_tp,
+        )
 
     report_dict = _serialize_report(report) if report else {}
     (output_dir / "plumb_report.json").write_text(
