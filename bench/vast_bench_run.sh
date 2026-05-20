@@ -285,7 +285,8 @@ PYTHONPATH=/opt/plumb-oss python bench/sharegpt_moe_bench.py \
   --sharegpt-path /tmp/sharegpt.json \
   --output-dir /tmp/bench-results \
   --skip-phase2 \
-  --trust-remote-code
+  --trust-remote-code \
+  --hetero-sim
 
 echo "Benchmark done. Results in /tmp/bench-results/"
 ls -lh /tmp/bench-results/

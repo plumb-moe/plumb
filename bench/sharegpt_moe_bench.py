@@ -339,8 +339,12 @@ def run_profiling_pass(
     model_name: str,
     prompts: list[dict],
     num_profile: int = 200,
-) -> object:
-    """Spawn a TP=1 LLM, attach plumb hooks, run prompts, return ProfileReport."""
+) -> tuple[object, object, float]:
+    """Spawn a TP=1 LLM, attach plumb hooks, run prompts.
+
+    Returns (ProfileReport, ActivationCounter, duration_seconds).
+    Counter is needed for hetero re-analysis; report may be None on failure.
+    """
     try:
         from vllm import LLM, SamplingParams  # type: ignore[import]
     except ImportError:
@@ -354,7 +358,7 @@ def run_profiling_pass(
         from plumb.topology import Topology
     except ImportError as exc:
         print(f"ERROR: plumb not installed: {exc}", file=sys.stderr)
-        return None
+        return None, None, 0.0
 
     profile_prompts = [p["prompt"] for p in prompts[:num_profile]]
     print(f"  Spawning TP=1 LLM for profiling ({len(profile_prompts)} prompts)...", flush=True)
@@ -371,7 +375,7 @@ def run_profiling_pass(
         )
     except Exception as exc:
         print(f"ERROR: failed to load LLM for profiling: {exc}", file=sys.stderr)
-        return None
+        return None, None, 0.0
 
     counter = ActivationCounter(window_size=500)
     hooks = ProfilingHooks(counter)
@@ -398,7 +402,7 @@ def run_profiling_pass(
         duration_seconds=duration,
         num_gpus=1,
     )
-    return report
+    return report, counter, duration
 
 
 # ── Placement scenario analysis ───────────────────────────────────────────────
@@ -691,6 +695,106 @@ def _print_summary_plain(
     print("=" * 72)
 
 
+# ── Heterogeneous topology simulation ────────────────────────────────────────
+
+def build_simulated_hetero_topology(num_gpus: int) -> object:
+    """
+    Build a HeterogeneousTopology representing a realistic mixed-GPU node.
+
+    For num_gpus=4: 2x A100 PCIe (fast) + 2x RTX 3060 (slow).
+    For num_gpus=2: 1x A100 PCIe + 1x RTX 3060.
+    Relative compute scores are normalised so A100=1.0, RTX 3060≈0.31
+    (reflecting SM-clock × compute-cap ratio: 1410×8.0 vs 1777×8.6 × VRAM penalty).
+
+    This exercises plumb's heterogeneous placement analysis on real profiling
+    data without requiring actual mixed-GPU hardware.
+    """
+    try:
+        from numa_topology.gpu_capabilities import GPUCapability, HeterogeneousTopology
+    except ImportError:
+        print("  WARNING: numa_topology.gpu_capabilities not available — "
+              "skipping hetero sim.", file=sys.stderr)
+        return None
+
+    a100_score = 1.0
+    rtx3060_score = round((1777 * 8.6) / (1410 * 8.0), 4)  # ~1.357 unnorm → norm below
+
+    # Normalise: fastest gets 1.0
+    max_score = max(a100_score, rtx3060_score)
+    a100_norm = round(a100_score / max_score, 4)
+    rtx_norm = round(rtx3060_score / max_score, 4)
+
+    fast_count = max(1, num_gpus // 2)
+    slow_count = num_gpus - fast_count
+
+    gpus = []
+    for i in range(fast_count):
+        gpus.append(GPUCapability(
+            index=i, name="A100 PCIe 40GB",
+            memory_total_mib=40960, memory_free_mib=36000,
+            compute_cap="8.0", max_sm_clock_mhz=1410, max_mem_clock_mhz=1215,
+            relative_compute_score=a100_norm,
+        ))
+    for i in range(slow_count):
+        gpus.append(GPUCapability(
+            index=fast_count + i, name="RTX 3060",
+            memory_total_mib=12288, memory_free_mib=10000,
+            compute_cap="8.6", max_sm_clock_mhz=1777, max_mem_clock_mhz=937,
+            relative_compute_score=rtx_norm,
+        ))
+
+    return HeterogeneousTopology(
+        gpus=gpus,
+        is_homogeneous=False,
+        mixed_vendor=False,
+        compute_score_range=(min(a100_norm, rtx_norm), max(a100_norm, rtx_norm)),
+    )
+
+
+def run_hetero_analysis(report, hetero_topo, counter, model_name: str,
+                        duration: float, num_gpus: int) -> dict:
+    """Re-run generate_report with hetero_topology; return serialised result."""
+    try:
+        from plumb.report.generator import generate_report
+        from plumb.topology import Topology
+    except ImportError as exc:
+        print(f"  WARNING: plumb not importable for hetero analysis: {exc}", file=sys.stderr)
+        return {}
+
+    if counter is None or hetero_topo is None:
+        return {}
+
+    try:
+        hetero_report = generate_report(
+            counter=counter,
+            topology=Topology.flat(num_gpus),
+            model_name=model_name,
+            duration_seconds=duration,
+            num_gpus=num_gpus,
+            hetero_topology=hetero_topo,
+        )
+        result = _serialize_report(hetero_report)
+
+        # Extract key hetero fields for summary
+        ht = getattr(hetero_report, "heterogeneous_topology", None)
+        hp = getattr(hetero_report, "heterogeneous_placement", None)
+        violations = getattr(hp, "violations", []) if hp else []
+        print(f"  Hetero sim: {len(hetero_topo.gpus)} GPUs  "
+              f"homogeneous={hetero_topo.is_homogeneous}  "
+              f"compute_range={hetero_topo.compute_score_range}")
+        print(f"  Placement violations: {len(violations)}")
+        for v in violations[:3]:
+            layer = getattr(v, "layer_id", "?")
+            expert = getattr(v, "expert_id", "?")
+            gpu = getattr(v, "current_gpu", "?")
+            rec = getattr(v, "recommended_gpu", "?")
+            print(f"    layer={layer} expert={expert}: gpu{gpu}→gpu{rec}")
+        return result
+    except Exception as exc:
+        print(f"  WARNING: hetero analysis failed: {exc}", file=sys.stderr)
+        return {}
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -736,6 +840,12 @@ def main() -> None:
     ap.add_argument("--num-profile", type=int, default=200,
                     help="Requests for the plumb profiling pass (default: 200)")
     ap.add_argument("--trust-remote-code", action="store_true")
+    ap.add_argument(
+        "--hetero-sim", action="store_true",
+        help="Simulate a heterogeneous topology (2x A100 + 2x RTX 3060) for the "
+             "plumb heterogeneous placement analysis. Exercises the hetero codepath "
+             "without needing real mixed-GPU hardware.",
+    )
     args = ap.parse_args()
 
     concurrency_levels = [int(c.strip()) for c in args.concurrency.split(",")]
@@ -770,7 +880,7 @@ def main() -> None:
 
     # ── Step 2: Plumb profiling pass (TP=1, separate LLM instance) ───────────
     print("\n[2/5] Running plumb profiling pass (TP=1 LLM)...")
-    report = run_profiling_pass(
+    report, _profile_counter, _profile_duration = run_profiling_pass(
         model_name=args.model,
         prompts=prompts,
         num_profile=args.num_profile,
@@ -787,6 +897,25 @@ def main() -> None:
         print(f"  Mean imbalance ratio: {summ.get('mean_imbalance_ratio', 0):.3f}")
         print(f"  Max imbalance ratio : {summ.get('max_imbalance_ratio', 0):.3f}")
         print(f"  Worst layer         : {summ.get('worst_layer_id', 'n/a')}")
+
+    # ── Heterogeneous simulation ──────────────────────────────────────────────
+    hetero_report_dict: dict = {}
+    if args.hetero_sim:
+        print("\n  [hetero-sim] Simulating mixed-GPU topology "
+              f"(2×A100 + 2×RTX 3060, {args.tp} slots)...")
+        hetero_topo = build_simulated_hetero_topology(args.tp)
+        hetero_report_dict = run_hetero_analysis(
+            report=report, hetero_topo=hetero_topo,
+            counter=_profile_counter,
+            model_name=args.model,
+            duration=_profile_duration or 1.0,
+            num_gpus=args.tp,
+        )
+        if hetero_report_dict:
+            (output_dir / "hetero_report.json").write_text(
+                json.dumps(hetero_report_dict, indent=2, default=str)
+            )
+            print(f"  Hetero report saved → {output_dir / 'hetero_report.json'}")
 
     placement_scenarios = compute_placement_scenarios(report, num_gpus=args.tp)
     if placement_scenarios.get("layers_analyzed", 0) > 0:
@@ -937,6 +1066,7 @@ def main() -> None:
             if report else None
         ),
         "placement_scenarios": placement_scenarios if placement_scenarios else None,
+        "hetero_sim_run": bool(hetero_report_dict),
     }
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
     print(f"  Summary saved → {output_dir / 'summary.json'}")
