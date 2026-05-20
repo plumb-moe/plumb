@@ -144,6 +144,7 @@ def start_server(
     if tokenizer_mode:
         cmd += ["--tokenizer-mode", tokenizer_mode]
     env = os.environ.copy()
+    env["VLLM_USE_V1"] = "0"  # v1 engine has ABI issues with pip torch builds
     if extra_env:
         env.update(extra_env)
     print(f"  Launching: {' '.join(cmd[:8])} ...", flush=True)
@@ -369,6 +370,8 @@ def run_profiling_pass(
 
     profile_prompts = [p["prompt"] for p in prompts[:num_profile]]
     print(f"  Spawning TP=1 LLM for profiling ({len(profile_prompts)} prompts)...", flush=True)
+
+    os.environ.setdefault("VLLM_USE_V1", "0")  # v1 engine has ABI issues with pip torch builds
 
     t_start = time.time()
     try:
