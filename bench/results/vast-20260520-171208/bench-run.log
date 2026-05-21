@@ -1,0 +1,56 @@
+INFO 05-21 00:05:29 [__init__.py:239] Automatically detected platform cuda.
+
+========================================================================
+ SHAREGPT MOE BENCHMARK — plumb + Mixtral-8x7B
+  Model       : TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ
+  TP size     : 4
+  Concurrency : [1, 4, 16, 32]
+  Requests    : 500
+  Output dir  : /tmp/bench-results
+========================================================================
+
+[1/5] Loading ShareGPT prompts...
+Loading ShareGPT from /tmp/sharegpt.json ...
+  Loaded 500 prompts (filtered from 1500 candidates)
+
+[2/5] Skipping profiling pass (--num-profile 0).
+  Plumb report saved → /tmp/bench-results/plumb_report.json
+
+  [hetero-sim] Simulating mixed-GPU topology (2×A100 + 2×RTX 3060, 4 slots)...
+
+[3/5] Phase 1 — Baseline benchmark...
+  Launching: /opt/conda/bin/python -m vllm.entrypoints.openai.api_server --model TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ --tokenizer mistralai/Mixtral-8x7B-Instruct-v0.1 --tensor-parallel-size ...
+  Server PID 19521 — waiting for ready (timeout 600s)...
+  Server ready.
+  Warmup (40 req, concurrency=32)...
+  [Baseline] concurrency=1, 500 requests...
+    p50=92.7ms  p95=606.1ms  throughput=5.74 req/s  errors=0
+  [Baseline] concurrency=4, 500 requests...
+    p50=564.4ms  p95=1436.7ms  throughput=6.20 req/s  errors=0
+  [Baseline] concurrency=16, 500 requests...
+    p50=2380.2ms  p95=3970.9ms  throughput=6.31 req/s  errors=0
+  [Baseline] concurrency=32, 500 requests...
+    p50=4980.8ms  p95=6310.8ms  throughput=4.58 req/s  errors=20
+  Phase 1 results saved → /tmp/bench-results/phase1_benchmark.json
+
+[4/5] Phase 2 skipped (--skip-phase2).
+
+[5/5] Writing summary...
+  Summary saved → /tmp/bench-results/summary.json
+�──────────────────── Plumb ShareGPT MoE Benchmark — Results ────────────────────
+                               Throughput & Latency                              
+┏━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃             ┃          ┃  Throughput ┃   p50 TTFT ┃    p95 TTFT ┃   p99 TTFT ┃
+┃ Concurrency ┃ Phase    ┃     (req/s) ┃       (ms) ┃        (ms) ┃       (ms) ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│           1 │ Baseline │        5.74 │       92.7 │       606.1 │      875.9 │
+│           4 │ Baseline │        6.20 │      564.4 │      1436.7 │     2001.8 │
+│          16 │ Baseline │        6.31 │     2380.2 │      3970.9 │     4181.6 │
+│          32 │ Baseline │        4.58 │     4980.8 │      6310.8 │     8205.0 │
+└─────────────┴──────────┴─────────────┴────────────┴─────────────┴────────────┘
+
+  Output dir: /tmp/bench-results
+────────────────────────────────────────────────────────────────────────────────
+XIT:0
+EXIT:0
+EXIT:0

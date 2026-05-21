@@ -240,6 +240,58 @@ pip install git+https://github.com/plumb-moe/plumb.git 2>/dev/null || true
 pip uninstall -y nvidia-nccl-cu13 2>/dev/null || true
 pip install 'nvidia-nccl-cu12==2.21.5' --force-reinstall --quiet 2>/dev/null || true
 
+# Patch 1: vllm transformers_utils/tokenizer.py — transformers 5.9.0 removed
+# all_special_tokens_extended from LlamaTokenizer (slow tokenizer); vllm 0.8.5
+# accesses it unconditionally. Use getattr fallback instead.
+python3 - << 'PATCH_EOF'
+import os
+path = '/opt/conda/lib/python3.11/site-packages/vllm/transformers_utils/tokenizer.py'
+if os.path.exists(path):
+    src = open(path).read()
+    old = "tokenizer_all_special_tokens_extended = (\n        tokenizer.all_special_tokens_extended)"
+    new = "tokenizer_all_special_tokens_extended = (\n        getattr(tokenizer, 'all_special_tokens_extended', []))"
+    if old in src:
+        open(path, 'w').write(src.replace(old, new, 1))
+        print('Patch 1 applied: tokenizer.py')
+    else:
+        print('Patch 1 skipped (already applied or not needed)')
+PATCH_EOF
+
+# Patch 2: vllm model_executor/models/mixtral.py — AWQ config.json has
+# "head_dim": null which overrides getattr fallback; use `or` to handle None.
+python3 - << 'PATCH_EOF'
+import os
+path = '/opt/conda/lib/python3.11/site-packages/vllm/model_executor/models/mixtral.py'
+if os.path.exists(path):
+    src = open(path).read()
+    old = 'self.head_dim = getattr(config, "head_dim",\n                               self.hidden_size // self.total_num_heads)'
+    new = 'self.head_dim = (getattr(config, "head_dim", None)\n                          or self.hidden_size // self.total_num_heads)'
+    if old in src:
+        open(path, 'w').write(src.replace(old, new, 1))
+        print('Patch 2 applied: mixtral.py')
+    else:
+        print('Patch 2 skipped (already applied or not needed)')
+PATCH_EOF
+
+# Patch 3: vllm config.py get_head_size — same null head_dim issue causes
+# KV cache size calculation to return None.
+python3 - << 'PATCH_EOF'
+import os
+path = '/opt/conda/lib/python3.11/site-packages/vllm/config.py'
+if os.path.exists(path):
+    src = open(path).read()
+    old = '        if hasattr(self.hf_text_config, "head_dim"):\n            return self.hf_text_config.head_dim'
+    new = '        if hasattr(self.hf_text_config, "head_dim") and self.hf_text_config.head_dim is not None:\n            return self.hf_text_config.head_dim'
+    if old in src:
+        open(path, 'w').write(src.replace(old, new, 1))
+        print('Patch 3 applied: config.py')
+    else:
+        print('Patch 3 skipped (already applied or not needed)')
+PATCH_EOF
+
+# Install GCC — needed by torch inductor for AWQ Marlin kernel JIT compilation.
+apt-get install -y gcc > /dev/null 2>&1 || true
+
 echo "--- Downloading ShareGPT dataset ---"
 python3 -c "
 import urllib.request, os

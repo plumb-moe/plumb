@@ -1,0 +1,24 @@
+INFO 05-20 22:38:19 [__init__.py:239] Automatically detected platform cuda.
+
+========================================================================
+ SHAREGPT MOE BENCHMARK — plumb + Mixtral-8x7B
+  Model       : TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ
+  TP size     : 4
+  Concurrency : [1, 4, 16, 32]
+  Requests    : 500
+  Output dir  : /tmp/bench-results
+========================================================================
+
+[1/5] Loading ShareGPT prompts...
+Loading ShareGPT from /tmp/sharegpt.json ...
+  Loaded 500 prompts (filtered from 1500 candidates)
+
+[2/5] Skipping profiling pass (--num-profile 0).
+  Plumb report saved → /tmp/bench-results/plumb_report.json
+
+  [hetero-sim] Simulating mixed-GPU topology (2×A100 + 2×RTX 3060, 4 slots)...
+
+[3/5] Phase 1 — Baseline benchmark...
+  Launching: /opt/conda/bin/python -m vllm.entrypoints.openai.api_server --model TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ --tokenizer mistralai/Mixtral-8x7B-Instruct-v0.1 --tensor-parallel-size ...
+  Server PID 9723 — waiting for ready (timeout 600s)...
+ERROR: server did not become ready (Phase 1). Check vllm_server.log.

@@ -140,6 +140,8 @@ def start_server(
         "--disable-log-requests",
         "--max-num-seqs", str(max_num_seqs),
         "--max-model-len", "4096",
+        "--enforce-eager",         # no torch.compile — container lacks GCC for inductor
+        "--disable-custom-all-reduce",
     ]
     if tokenizer_mode:
         cmd += ["--tokenizer-mode", tokenizer_mode]

@@ -1,0 +1,15 @@
+{
+  "model": "TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ",
+  "tp": 4,
+  "timestamp": "20260521-000109",
+  "num_prompts": 500,
+  "phase1_throughput_rps": 6.425,
+  "phase2_throughput_rps": null,
+  "improvement_pct": null,
+  "cross_gpu_dispatch_rate": null,
+  "max_imbalance_ratio": null,
+  "top3_hot_experts": [],
+  "plumb_estimated_improvement_pct": null,
+  "placement_scenarios": null,
+  "hetero_sim_run": false
+}

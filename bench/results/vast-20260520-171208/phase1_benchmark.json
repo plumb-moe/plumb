@@ -1,0 +1,51 @@
+{
+  "model": "TheBloke/Mixtral-8x7B-Instruct-v0.1-AWQ",
+  "tp": 4,
+  "timestamp": "20260521-000109",
+  "concurrency_results": [
+    {
+      "concurrency": 1,
+      "n": 500,
+      "errors": 0,
+      "mean_ms": 175.98,
+      "p50_ms": 92.71,
+      "p95_ms": 608.95,
+      "p99_ms": 894.03,
+      "throughput_rps": 5.678,
+      "elapsed_s": 88.07
+    },
+    {
+      "concurrency": 4,
+      "n": 500,
+      "errors": 0,
+      "mean_ms": 630.57,
+      "p50_ms": 543.37,
+      "p95_ms": 1424.28,
+      "p99_ms": 1703.02,
+      "throughput_rps": 6.337,
+      "elapsed_s": 78.9
+    },
+    {
+      "concurrency": 16,
+      "n": 500,
+      "errors": 0,
+      "mean_ms": 2448.2,
+      "p50_ms": 2378.25,
+      "p95_ms": 3969.93,
+      "p99_ms": 4185.05,
+      "throughput_rps": 6.384,
+      "elapsed_s": 78.33
+    },
+    {
+      "concurrency": 32,
+      "n": 500,
+      "errors": 0,
+      "mean_ms": 4793.1,
+      "p50_ms": 4896.54,
+      "p95_ms": 6304.23,
+      "p99_ms": 9692.35,
+      "throughput_rps": 6.425,
+      "elapsed_s": 77.82
+    }
+  ]
+}
