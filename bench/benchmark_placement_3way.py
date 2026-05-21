@@ -121,7 +121,7 @@ class VllmServer:
             "--tensor-parallel-size", str(tp),
             "--enforce-eager",
             "--port", str(port),
-            "--disable-log-requests",
+            "--no-enable-log-requests",
         ]
         self._cmd = cmd
         self._log_path = Path(f"/tmp/bench3way/server_{log_suffix}.log")
@@ -395,16 +395,13 @@ def compute_comm_stats(
 ) -> dict:
     """Estimated communication overhead using plumb's comms model."""
     try:
-        from plumb.analysis.comms import (
-            compute_communication_cost,
-            constants_from_pcie_topology,
-        )
+        from plumb.analysis.comms import CommunicationConstants, compute_communication_cost
         from numa_topology import Topology
         from numa_topology.pcie import PCIeTopology
 
         topo = Topology.flat(num_gpus)
         pcie = PCIeTopology.discover()
-        constants = constants_from_pcie_topology(pcie)
+        constants = CommunicationConstants()
         result = compute_communication_cost(
             placement, placement, loads, topo, pcie,
             constants=constants, src_gpu=0,
@@ -587,7 +584,7 @@ def main():
             "--tensor-parallel-size", str(args.tp),
             "--enforce-eager",
             "--port", str(args.port),
-            "--disable-log-requests",
+            "--no-enable-log-requests",
         ]
         log_path = out_dir / "server_random_profiling.log"
         print(f"  Starting vLLM + plumb profiler (log: {log_path})")
