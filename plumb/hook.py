@@ -184,7 +184,13 @@ class ProfilingHooks:
         _is_last_refs: list[list[bool]] = []
 
         for name, module in model.named_modules():
-            extractor = _BLOCK_EXTRACTORS.get(type(module).__name__)
+            mname = type(module).__name__
+            # Skip modules that appear in _VLLM_GATE_BLOCKS: their _BLOCK_EXTRACTORS
+            # extractor returns None in vLLM (plain-tensor forward), and the gate
+            # sub-module path in _attach_vllm_gates works for both vLLM and transformers.
+            if mname in _VLLM_GATE_BLOCKS:
+                continue
+            extractor = _BLOCK_EXTRACTORS.get(mname)
             if extractor is None:
                 continue
             hook, is_last = self._block_hook(layer_idx, extractor, top_k)
@@ -197,8 +203,14 @@ class ProfilingHooks:
         if layer_idx == 0:
             layer_idx, _is_last_refs = self._attach_router_extractors(model, top_k)
 
-        if layer_idx == 0:
-            layer_idx, _is_last_refs = self._attach_vllm_gates(model, top_k)
+        # Always try vLLM gate hooks — not gated on layer_idx == 0.
+        # Modules in _VLLM_GATE_BLOCKS were skipped above, so no double-counting.
+        # Gate extractor (out[0] or out) handles both ReplicatedLinear (vLLM) and
+        # nn.Linear (transformers) gate/router sub-modules correctly.
+        _vllm_n, _vllm_is_last = self._attach_vllm_gates(model, top_k)
+        if _vllm_n > 0:
+            layer_idx = _vllm_n
+            _is_last_refs = _vllm_is_last
 
         if layer_idx == 0:
             layer_idx = self._attach_gate_fallback(model, top_k)
