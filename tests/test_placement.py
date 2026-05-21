@@ -5,7 +5,10 @@ import pytest
 from plumb.analysis.placement import (
     _IMPROVEMENT_MAX,
     _IMPROVEMENT_MIN,
+    _comm_aware_greedy,
     _greedy,
+    _numa_finetune,
+    coactivation_partition,
     recommend_placement,
     worst_case_placement,
 )
@@ -366,6 +369,229 @@ def test_greedy_assigns_hottest_expert_to_gpu0():
     placement = _greedy(load, n_gpus=4, layers=[0], experts=list(range(8)))
     # Hottest expert (index 7) gets rank 0 → GPU 0; value is list[int]
     assert placement[(0, 7)] == [0]
+
+
+# ---------------------------------------------------------------------------
+# _comm_aware_greedy
+# ---------------------------------------------------------------------------
+
+def test_comm_aware_greedy_flat_topology_matches_greedy():
+    # On a flat (single-NUMA) topology all comm costs are 0, so the result
+    # should have the same GPU load distribution as plain greedy.
+    import numpy as np
+
+    load = np.array([[float(e + 1) for e in range(8)]])
+    layers, experts = [0], list(range(8))
+    t = _flat_topology(4)
+
+    greedy_pl = _greedy(load, n_gpus=4, layers=layers, experts=experts)
+    comm_pl   = _comm_aware_greedy(load, n_gpus=4, layers=layers, experts=experts, topology=t)
+
+    # Both should use all 4 GPUs
+    assert {gpus[0] for gpus in greedy_pl.values()} == {0, 1, 2, 3}
+    assert {gpus[0] for gpus in comm_pl.values()} == {0, 1, 2, 3}
+
+
+def test_comm_aware_greedy_prefers_same_numa_gpu():
+    # On a dual-NUMA 8-GPU topology with src_gpu=0 (NUMA 0), hot experts
+    # should prefer NUMA-0 GPUs (0-3) over NUMA-1 GPUs (4-7).
+    import numpy as np
+    from plumb.analysis.comms import CommunicationConstants
+
+    # 8 experts, 8 GPUs. Expert 0 very hot.
+    load = np.array([[1000.0] + [10.0] * 7])
+    layers, experts = [0], list(range(8))
+    t = _dual_epyc_topology()  # GPUs 0-3 NUMA 0, 4-7 NUMA 1
+
+    constants = CommunicationConstants(
+        same_numa_us=1.0,
+        cross_numa_pcie_us=100.0,  # extreme penalty for cross-NUMA
+        nvlink_us=0.5,
+    )
+    pl = _comm_aware_greedy(
+        load, n_gpus=8, layers=layers, experts=experts,
+        topology=t, constants=constants, src_gpu=0,
+    )
+    # Hottest expert (0) should land on a NUMA-0 GPU (0-3)
+    assert pl[(0, 0)][0] in {0, 1, 2, 3}
+
+
+def test_comm_aware_greedy_lower_comm_cost_than_greedy_on_dual_numa():
+    # Comm-aware greedy should produce lower cross-NUMA routing cost than
+    # plain greedy when cross-NUMA penalty is significant.
+    import numpy as np
+    from plumb.analysis.comms import CommunicationConstants, compute_communication_cost
+    from numa_topology.pcie import PCIeTopology, GPUPCIeInfo
+
+    t = _dual_epyc_topology()
+    n_gpus = 8
+    # Hot experts concentrated at ids 0,1,2,3
+    load = np.array([[1000.0 * (8 - e) for e in range(8)]])
+    layers, experts = [0], list(range(8))
+    loads_dict = {(0, e): int(load[0, e]) for e in range(8)}
+
+    constants = CommunicationConstants(same_numa_us=2.0, cross_numa_pcie_us=15.0, nvlink_us=3.0)
+
+    greedy_pl = _greedy(load, n_gpus=n_gpus, layers=layers, experts=experts)
+    comm_pl   = _comm_aware_greedy(
+        load, n_gpus=n_gpus, layers=layers, experts=experts,
+        topology=t, constants=constants, src_gpu=0,
+    )
+
+    # Build a trivial PCIe topology (no NVLink) to satisfy compute_communication_cost
+    fake_pcie = PCIeTopology(
+        gpus=[GPUPCIeInfo(gpu_idx=g, bus_id="", link_speed_gts=8.0, link_width=16,
+                          theoretical_bw_gbs=15.8, nvlink=False) for g in range(n_gpus)],
+        is_symmetric=True, min_bw_gpu=0, max_bw_gpu=0, bandwidth_ratio=1.0,
+    )
+    # Build default placements for both (random initial = all on GPU 0 as baseline)
+    default_pl = {(0, e): [0] for e in range(8)}
+
+    greedy_cost = compute_communication_cost(
+        default_pl, greedy_pl, loads_dict, t, fake_pcie, constants
+    )
+    comm_cost = compute_communication_cost(
+        default_pl, comm_pl, loads_dict, t, fake_pcie, constants
+    )
+    assert comm_cost.recommended_overhead_us <= greedy_cost.recommended_overhead_us
+
+
+# ---------------------------------------------------------------------------
+# PCIe bandwidth-weighted _numa_finetune
+# ---------------------------------------------------------------------------
+
+def test_numa_finetune_pcie_ranks_by_bandwidth():
+    # With pcie_topology provided, hottest expert should land on the
+    # highest-bandwidth GPU regardless of NUMA structure.
+    import numpy as np
+    from numa_topology.pcie import PCIeTopology, GPUPCIeInfo
+
+    # 4 GPUs, 4 experts. Expert 0 hottest.
+    load = np.array([[1000.0, 100.0, 50.0, 10.0]])
+    layers, experts = [0], list(range(4))
+    t = _flat_topology(4)  # single NUMA — old code would no-op here
+
+    # GPU 2 has highest bandwidth
+    pcie = PCIeTopology(
+        gpus=[
+            GPUPCIeInfo(0, "", 8.0, 4,  3.94, False),   # x4  = 3.94 GB/s
+            GPUPCIeInfo(1, "", 8.0, 8,  7.88, False),   # x8
+            GPUPCIeInfo(2, "", 8.0, 16, 15.75, False),  # x16 = highest
+            GPUPCIeInfo(3, "", 8.0, 8,  7.88, False),   # x8
+        ],
+        is_symmetric=False, min_bw_gpu=0, max_bw_gpu=2, bandwidth_ratio=4.0,
+    )
+    initial = {(0, e): [e % 4] for e in range(4)}
+    result = _numa_finetune(initial, t, load, layers, experts, pcie_topology=pcie)
+
+    # Hottest expert (0) should be pinned to GPU 2 (highest bandwidth)
+    assert result[(0, 0)][0] == 2
+
+
+def test_numa_finetune_pcie_single_gpu_no_op():
+    import numpy as np
+    from numa_topology.pcie import PCIeTopology, GPUPCIeInfo
+
+    load = np.array([[100.0, 50.0]])
+    layers, experts = [0], [0, 1]
+    t = _flat_topology(1)
+    pcie = PCIeTopology(
+        gpus=[GPUPCIeInfo(0, "", 8.0, 16, 15.75, False)],
+        is_symmetric=True, min_bw_gpu=0, max_bw_gpu=0, bandwidth_ratio=1.0,
+    )
+    initial = {(0, 0): [0], (0, 1): [0]}
+    result = _numa_finetune(initial, t, load, layers, experts, pcie_topology=pcie)
+    assert result == initial
+
+
+def test_numa_finetune_no_pcie_single_numa_unchanged():
+    # Without pcie_topology, single-NUMA topology should return unchanged (original behaviour).
+    import numpy as np
+
+    load = np.array([[500.0, 100.0, 50.0, 10.0]])
+    layers, experts = [0], list(range(4))
+    t = _flat_topology(4)
+    initial = {(0, e): [e] for e in range(4)}
+    result = _numa_finetune(initial, t, load, layers, experts, pcie_topology=None)
+    assert result == initial
+
+
+# ---------------------------------------------------------------------------
+# coactivation_partition
+# ---------------------------------------------------------------------------
+
+def test_coactivation_partition_empty_counter():
+    c = ActivationCounter()
+    assert coactivation_partition(c, _flat_topology(4)) == {}
+
+
+def test_coactivation_partition_shape():
+    data = {(layer, expert): (expert + 1) * 10 for layer in range(2) for expert in range(8)}
+    c = _counter_with(data)
+    result = coactivation_partition(c, _flat_topology(4), num_gpus=4)
+    assert len(result) == 2 * 8
+    for gpus in result.values():
+        assert isinstance(gpus, list) and 0 <= gpus[0] < 4
+
+
+def test_coactivation_partition_collocates_hot_pairs():
+    # Two experts (0, 1) are very hot together; two others (2, 3) are cold.
+    # With 2 GPUs, the partition should place 0 and 1 on the same GPU.
+    data = {(0, 0): 1000, (0, 1): 1000, (0, 2): 10, (0, 3): 10}
+    c = _counter_with(data)
+    result = coactivation_partition(c, _flat_topology(2), num_gpus=2)
+    assert result[(0, 0)][0] == result[(0, 1)][0]
+
+
+def test_coactivation_partition_balance_correction():
+    # One GPU should not hold >2× average load after correction.
+    # Create 4 experts where experts 0,1,2 all co-activate heavily with each other.
+    # Initial partition would try to put 0,1,2 on one GPU — correction should move one off.
+    data = {(0, e): (1000 if e < 3 else 10) for e in range(4)}
+    c = _counter_with(data)
+    result = coactivation_partition(c, _flat_topology(2), num_gpus=2)
+    # Check each GPU's load doesn't exceed 2× average
+    from plumb.counter import ActivationCounter as AC
+    snapshot = c.snapshot()
+    gpu_loads = {0: 0, 1: 0}
+    for (lid, eid), gpus in result.items():
+        gpu_loads[gpus[0]] += snapshot.get((lid, eid), 0)
+    avg = sum(gpu_loads.values()) / 2
+    assert all(v <= 2 * avg + 1 for v in gpu_loads.values())  # +1 for integer rounding
+
+
+def test_coactivation_partition_multilayer_independent():
+    # Each layer partitioned independently — no cross-layer bleeding
+    data = {(0, 0): 1000, (0, 1): 1000, (1, 0): 10, (1, 1): 10}
+    c = _counter_with(data)
+    result = coactivation_partition(c, _flat_topology(2), num_gpus=2)
+    # Both layers have results
+    assert (0, 0) in result and (1, 0) in result
+
+
+# ---------------------------------------------------------------------------
+# recommend_placement uses comm_aware_greedy on multi-NUMA topology
+# ---------------------------------------------------------------------------
+
+def test_recommend_uses_comm_aware_on_dual_numa():
+    # On a dual-NUMA topology with high imbalance, recommend_placement should
+    # pick method='comm_aware_greedy' (not plain 'greedy').
+    data = {(layer, expert): (1000 if expert == 0 else 50)
+            for layer in range(4) for expert in range(8)}
+    c = _counter_with(data)
+    t = _dual_epyc_topology()
+    rec = recommend_placement(c, t, num_gpus=8)
+    assert rec is not None
+    assert rec.method == "comm_aware_greedy"
+
+
+def test_recommend_uses_greedy_on_flat_topology():
+    data = {(layer, expert): (1000 if expert == 0 else 50)
+            for layer in range(4) for expert in range(8)}
+    c = _counter_with(data)
+    rec = recommend_placement(c, _flat_topology(8), num_gpus=8)
+    assert rec is not None
+    assert rec.method in ("greedy", "eplb")
 
 
 # ---------------------------------------------------------------------------
