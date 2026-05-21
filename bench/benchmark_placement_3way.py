@@ -31,6 +31,7 @@ import signal
 import statistics
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 import time
 from pathlib import Path
@@ -44,6 +45,7 @@ WARMUP_REQUESTS = 20
 BENCHMARK_REQUESTS = 200
 PROFILING_REQUESTS = 300   # longer profiling run for stable load counts
 MAX_OUTPUT_TOKENS = 128    # representative decode length
+CONCURRENCY = 8            # parallel in-flight requests
 
 # ShareGPT-style prompts: varied length, diverse content
 PROMPTS = [
@@ -119,7 +121,6 @@ class VllmServer:
             "python", "-m", "vllm.entrypoints.openai.api_server",
             "--model", model,
             "--tensor-parallel-size", str(tp),
-            "--enforce-eager",
             "--max-model-len", "4096",
             "--port", str(port),
             "--no-enable-log-requests",
@@ -253,30 +254,33 @@ def run_scenario(base_url: str, model: str, label: str) -> dict:
     """Warmup then benchmark one scenario. Returns metrics dict."""
     prompts = _PROMPT_POOL[:BENCHMARK_REQUESTS + WARMUP_REQUESTS]
 
-    print(f"  [{label}] Warmup ({WARMUP_REQUESTS} requests)...")
-    for p in prompts[:WARMUP_REQUESTS]:
-        requests.post(
-            f"{base_url}/v1/completions",
-            json={"model": model, "prompt": p, "max_tokens": 8, "temperature": 0.0},
-            timeout=60,
-        )
+    print(f"  [{label}] Warmup ({WARMUP_REQUESTS} requests, concurrency={CONCURRENCY})...")
+    with ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
+        futs = [pool.submit(requests.post, f"{base_url}/v1/completions",
+                            json={"model": model, "prompt": p, "max_tokens": 8, "temperature": 0.0},
+                            timeout=60)
+                for p in prompts[:WARMUP_REQUESTS]]
+        for f in as_completed(futs):
+            f.result()
 
-    print(f"  [{label}] Benchmarking ({BENCHMARK_REQUESTS} requests, max_tokens={MAX_OUTPUT_TOKENS})...")
+    print(f"  [{label}] Benchmarking ({BENCHMARK_REQUESTS} requests, max_tokens={MAX_OUTPUT_TOKENS}, concurrency={CONCURRENCY})...")
     poller = GpuUtilPoller()
     poller.start()
 
     results_list: list[dict] = []
     t_bench_start = time.perf_counter()
     bench_prompts = prompts[WARMUP_REQUESTS:WARMUP_REQUESTS + BENCHMARK_REQUESTS]
-    for i, p in enumerate(bench_prompts):
-        r = _measure_request(base_url, model, p)
-        if r:
-            results_list.append(r)
-        if (i + 1) % 50 == 0:
-            elapsed = time.perf_counter() - t_bench_start
-            done = i + 1
-            tps_so_far = sum(rr["output_tokens"] for rr in results_list) / elapsed
-            print(f"    {done}/{BENCHMARK_REQUESTS}  tok/s={tps_so_far:.1f}")
+    with ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
+        futs = {pool.submit(_measure_request, base_url, model, p): i
+                for i, p in enumerate(bench_prompts)}
+        for done_count, future in enumerate(as_completed(futs), 1):
+            r = future.result()
+            if r:
+                results_list.append(r)
+            if done_count % 50 == 0:
+                elapsed = time.perf_counter() - t_bench_start
+                tps_so_far = sum(rr["output_tokens"] for rr in results_list) / elapsed
+                print(f"    {done_count}/{BENCHMARK_REQUESTS}  tok/s={tps_so_far:.1f}")
 
     t_bench_end = time.perf_counter()
     gpu_util = poller.stop()
@@ -322,17 +326,35 @@ def run_profiling_phase(base_url: str, model: str) -> dict[tuple[int, int], int]
 
     Returns {(layer_id, expert_id): token_count}.
     Falls back to empty dict (bench continues without placement reordering).
+    Saves timestamped snapshot copies every 50 requests for heatmap animation.
     """
-    print(f"  [profile] Sending {PROFILING_REQUESTS} requests for expert load data...")
-    for i, p in enumerate(_PROMPT_POOL[:PROFILING_REQUESTS]):
-        requests.post(
-            f"{base_url}/v1/completions",
-            json={"model": model, "prompt": p, "max_tokens": MAX_OUTPUT_TOKENS,
-                  "temperature": 0.0},
-            timeout=120,
-        )
-        if (i + 1) % 100 == 0:
-            print(f"    {i + 1}/{PROFILING_REQUESTS}")
+    print(f"  [profile] Sending {PROFILING_REQUESTS} requests for expert load data (concurrency={CONCURRENCY})...")
+    snap_archive = Path("/tmp/bench3way/snapshots")
+    snap_archive.mkdir(exist_ok=True)
+    snap_dir = Path("/tmp/plumb")
+
+    def _save_snapshot_frame(idx: int) -> None:
+        snaps = sorted(snap_dir.glob("*_snapshot.json"), key=lambda p: p.stat().st_mtime)
+        if snaps:
+            dest = snap_archive / f"frame_{idx:04d}.json"
+            shutil.copy2(snaps[-1], dest)
+
+    completed = 0
+    with ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
+        futs = [pool.submit(requests.post, f"{base_url}/v1/completions",
+                            json={"model": model, "prompt": p, "max_tokens": MAX_OUTPUT_TOKENS,
+                                  "temperature": 0.0},
+                            timeout=120)
+                for p in _PROMPT_POOL[:PROFILING_REQUESTS]]
+        for future in as_completed(futs):
+            try:
+                future.result()
+            except Exception:
+                pass
+            completed += 1
+            if completed % 50 == 0:
+                print(f"    {completed}/{PROFILING_REQUESTS}")
+                _save_snapshot_frame(completed)
 
     # Read latest snapshot written by plumb autoattach
     snap_dir = Path("/tmp/plumb")
@@ -583,7 +605,6 @@ def main():
             "python", "-m", "vllm.entrypoints.openai.api_server",
             "--model", model_path,
             "--tensor-parallel-size", str(args.tp),
-            "--enforce-eager",
             "--max-model-len", "4096",
             "--port", str(args.port),
             "--no-enable-log-requests",

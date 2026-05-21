@@ -250,9 +250,11 @@ class ProfilingHooks:
                 logits = extractor(output)
                 if logits is None or logits.ndim != 2:
                     return
-                # Push raw logits — no topk, no CPU-GPU sync on the hot path.
-                # The drain thread does topk() + tolist() + record().
-                _drain_queue.put_nowait((counter, layer_idx, logits.detach(), is_last[0], top_k))
+                # Move to CPU on the hook thread before queuing. Gate tensors are
+                # small (num_tokens × num_experts), so the sync is cheap. Keeping raw
+                # GPU tensors across threads races with vLLM's CUDA stream management
+                # and triggers device-side asserts on subsequent attention kernels.
+                _drain_queue.put_nowait((counter, layer_idx, logits.detach().cpu(), is_last[0], top_k))
             except Exception:
                 logger.debug("Hook error layer %d", layer_idx, exc_info=True)
 
@@ -369,7 +371,7 @@ class ProfilingHooks:
                     output = output[0]
                 if output.ndim != 2:
                     return
-                _drain_queue.put_nowait((counter, layer_idx, output.detach(), False, top_k))
+                _drain_queue.put_nowait((counter, layer_idx, output.detach().cpu(), False, top_k))
             except Exception:
                 logger.debug("Gate hook error layer %d", layer_idx, exc_info=True)
 
