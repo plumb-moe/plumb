@@ -7,6 +7,7 @@ from plumb.analysis.placement import (
     _IMPROVEMENT_MIN,
     _greedy,
     recommend_placement,
+    worst_case_placement,
 )
 from plumb.counter import ActivationCounter
 from plumb.topology import Topology
@@ -264,6 +265,81 @@ def test_numa_finetune_pins_hot_experts_to_numa0():
     # The hottest expert in layer 0 should be placed on a NUMA-0 GPU (0-3)
     hot_gpus = rec.expert_placement[(0, 7)]
     assert topology.gpu_to_numa[hot_gpus[0]] == 0
+
+
+# ---------------------------------------------------------------------------
+# worst_case_placement
+# ---------------------------------------------------------------------------
+
+def test_worst_case_empty_counter():
+    c = ActivationCounter()
+    t = _flat_topology(4)
+    assert worst_case_placement(c, t) == {}
+
+
+def test_worst_case_shape_covers_all_pairs():
+    data = {(layer, expert): (100 * expert + 1) for layer in range(3) for expert in range(8)}
+    c = _counter_with(data)
+    t = _flat_topology(4)
+    placement = worst_case_placement(c, t, num_gpus=4)
+    assert len(placement) == 3 * 8
+    for gpus in placement.values():
+        assert isinstance(gpus, list)
+        assert all(0 <= g < 4 for g in gpus)
+
+
+def test_worst_case_concentrates_hot_experts_on_gpu0():
+    # 8 experts, 4 GPUs → experts_per_gpu=2; top 2 hottest should be on GPU 0
+    data = {(0, e): (1000 - e * 10) for e in range(8)}  # expert 0 hottest, expert 7 coldest
+    c = _counter_with(data)
+    placement = worst_case_placement(c, _flat_topology(4), num_gpus=4)
+    # Expert 0 (hottest) → rank 0 → GPU 0
+    assert placement[(0, 0)] == [0]
+    # Expert 1 (2nd hottest) → rank 1 → GPU 0 (within first block)
+    assert placement[(0, 1)] == [0]
+    # Expert 7 (coldest) → rank 7 → GPU 3
+    assert placement[(0, 7)] == [3]
+
+
+def test_worst_case_collocates_hot_experts_unlike_greedy():
+    # Adversarial property: worst_case packs the top-N hottest experts onto GPU 0 together;
+    # greedy spreads them round-robin so no GPU holds more than one of the top-N.
+    # With 8 experts and 4 GPUs, experts_per_gpu=2, so GPU 0 holds ranks 0 and 1 (both hot).
+    # Greedy puts rank 0 → GPU 0, rank 1 → GPU 1 — they end up on different GPUs.
+    import numpy as np
+
+    data = {(0, e): (1000 - e) for e in range(8)}  # strictly decreasing load
+    c = _counter_with(data)
+    t = _flat_topology(4)
+
+    worst = worst_case_placement(c, t, num_gpus=4)
+    experts = list(range(8))
+    load = np.array([[data[(0, e)] for e in experts]], dtype=np.float32)
+    greedy = _greedy(load, n_gpus=4, layers=[0], experts=experts)
+
+    # The two hottest experts (0 and 1) should share GPU 0 in worst_case
+    assert worst[(0, 0)][0] == worst[(0, 1)][0] == 0
+    # Greedy spreads them — expert 0 → GPU 0, expert 1 → GPU 1
+    assert greedy[(0, 0)][0] != greedy[(0, 1)][0]
+
+
+def test_worst_case_single_gpu():
+    # With 1 GPU every expert lands on GPU 0.
+    data = {(0, e): e + 1 for e in range(8)}
+    c = _counter_with(data)
+    placement = worst_case_placement(c, _flat_topology(1), num_gpus=1)
+    assert all(gpus == [0] for gpus in placement.values())
+
+
+def test_worst_case_multilayer_each_layer_independent():
+    # Per-layer sort is independent; expert 3 hottest in layer 0, expert 0 hottest in layer 1.
+    data = {(0, e): (1000 if e == 3 else 10) for e in range(4)}
+    data.update({(1, e): (1000 if e == 0 else 10) for e in range(4)})
+    c = _counter_with(data)
+    placement = worst_case_placement(c, _flat_topology(4), num_gpus=4)
+    # Hottest expert in each layer → GPU 0
+    assert placement[(0, 3)][0] == 0
+    assert placement[(1, 0)][0] == 0
 
 
 # ---------------------------------------------------------------------------
