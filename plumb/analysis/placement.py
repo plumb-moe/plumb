@@ -146,6 +146,38 @@ def _greedy(
     return placement
 
 
+def worst_case_placement(
+    counter: ActivationCounter,
+    topology: Topology,
+    num_gpus: int | None = None,
+) -> dict[tuple[int, int], list[int]]:
+    """Adversarial placement: concentrate hot experts on GPU 0 to maximise imbalance.
+
+    Inverse of _greedy: instead of spreading hottest experts round-robin across GPUs,
+    assigns them in contiguous rank-sorted blocks so GPU 0 owns all the busiest experts.
+    """
+    snapshot = counter.snapshot()
+    if not snapshot:
+        return {}
+
+    n_gpus = num_gpus or max(len(topology.gpu_to_numa), 1)
+    layers = sorted({k[0] for k in snapshot})
+    experts = sorted({k[1] for k in snapshot})
+
+    load = np.zeros((len(layers), len(experts)), dtype=np.float32)
+    for (lid, eid), count in snapshot.items():
+        load[layers.index(lid), experts.index(eid)] = count
+
+    experts_per_gpu = max(1, len(experts) // n_gpus)
+    placement: dict[tuple[int, int], list[int]] = {}
+    for li, lid in enumerate(layers):
+        order = np.argsort(-load[li])  # hottest first
+        for rank, ei in enumerate(order):
+            gpu = min(rank // experts_per_gpu, n_gpus - 1)
+            placement[(lid, experts[ei])] = [gpu]
+    return placement
+
+
 def _numa_finetune(
     placement: dict[tuple[int, int], list[int]],
     topology: Topology,
