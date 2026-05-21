@@ -120,6 +120,7 @@ class VllmServer:
             "--model", model,
             "--tensor-parallel-size", str(tp),
             "--enforce-eager",
+            "--max-model-len", "4096",
             "--port", str(port),
             "--no-enable-log-requests",
         ]
@@ -583,6 +584,7 @@ def main():
             "--model", model_path,
             "--tensor-parallel-size", str(args.tp),
             "--enforce-eager",
+            "--max-model-len", "4096",
             "--port", str(args.port),
             "--no-enable-log-requests",
         ]
@@ -650,24 +652,16 @@ def main():
     print(f"  Method: {worst_method}")
 
     # ── Reorder model weights ──────────────────────────────────────────────
+    # ── Phase 2: Optimal placement ─────────────────────────────────────────
+    # Sequential: create, bench, delete — avoids holding two full copies on disk
     print()
-    print("── REORDERING MODEL WEIGHTS ──────────────────────────────────────")
+    print("── REORDERING (optimal) + PHASE 2 ───────────────────────────────")
     opt_model_dir = str(out_dir / "model_optimal")
-    worst_model_dir = str(out_dir / "model_worst")
-
     print(f"  Writing optimal model to {opt_model_dir}...")
     t0 = time.time()
     reorder_model(model_path, opt_placement, opt_model_dir, num_gpus, layers, num_experts)
     print(f"  Done in {time.time() - t0:.1f}s")
 
-    print(f"  Writing worst-case model to {worst_model_dir}...")
-    t0 = time.time()
-    reorder_model(model_path, worst_placement, worst_model_dir, num_gpus, layers, num_experts)
-    print(f"  Done in {time.time() - t0:.1f}s")
-
-    # ── Phase 2: Optimal placement ─────────────────────────────────────────
-    print()
-    print("── PHASE 2: Optimal placement ────────────────────────────────────")
     with VllmServer(opt_model_dir, args.tp, args.port, "optimal") as srv:
         r2 = run_scenario(srv.base_url, srv.model, "optimal")
     r2["imbalance"] = compute_imbalance(loads)
@@ -675,15 +669,27 @@ def main():
     r2["placement_method"] = opt_method
     scenario_results.append(r2)
 
+    print(f"  Removing {opt_model_dir} to free disk...")
+    shutil.rmtree(opt_model_dir, ignore_errors=True)
+
     # ── Phase 3: Worst-case placement ─────────────────────────────────────
     print()
-    print("── PHASE 3: Worst-case placement ─────────────────────────────────")
+    print("── REORDERING (worst) + PHASE 3 ─────────────────────────────────")
+    worst_model_dir = str(out_dir / "model_worst")
+    print(f"  Writing worst-case model to {worst_model_dir}...")
+    t0 = time.time()
+    reorder_model(model_path, worst_placement, worst_model_dir, num_gpus, layers, num_experts)
+    print(f"  Done in {time.time() - t0:.1f}s")
+
     with VllmServer(worst_model_dir, args.tp, args.port, "worst") as srv:
         r3 = run_scenario(srv.base_url, srv.model, "worst")
     r3["imbalance"] = compute_imbalance(loads)
     r3["comm"] = compute_comm_stats(worst_placement, loads, num_gpus)
     r3["placement_method"] = worst_method
     scenario_results.append(r3)
+
+    print(f"  Removing {worst_model_dir} to free disk...")
+    shutil.rmtree(worst_model_dir, ignore_errors=True)
 
     # ── Results ───────────────────────────────────────────────────────────
     print_table(scenario_results)
