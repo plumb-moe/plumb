@@ -1,13 +1,17 @@
-"""GPU capability discovery via nvidia-smi.
+"""GPU capability discovery via nvidia-smi (CUDA) or rocm-smi (ROCm).
 
 Provides GPUCapability and HeterogeneousTopology dataclasses populated by
-parsing `nvidia-smi --query-gpu=... --format=csv,noheader` output.
+parsing `nvidia-smi --query-gpu=... --format=csv,noheader` output (NVIDIA)
+or `rocm-smi --showbus --showproductname --showmeminfo vram --showclocks
+--showhw --json` output (AMD).
 
-When nvidia-smi is unavailable a flat symmetric single-GPU topology is
-returned with a warning so callers never need to special-case the import.
+discover_gpu_capabilities() tries nvidia-smi first; falls back to rocm-smi
+when nvidia-smi is absent or reports zero GPUs.  When neither is available a
+flat single-GPU topology is returned with a warning.
 """
 from __future__ import annotations
 
+import json
 import logging
 import subprocess
 from dataclasses import dataclass, field
@@ -30,6 +34,16 @@ _NVIDIA_SMI_CMD = [
     "--format=csv,noheader",
 ]
 
+_ROCM_SMI_CAPABILITIES_CMD = [
+    "rocm-smi",
+    "--showbus",
+    "--showproductname",
+    "--showmeminfo", "vram",
+    "--showclocks",
+    "--showhw",
+    "--json",
+]
+
 
 @dataclass
 class GPUCapability:
@@ -37,10 +51,12 @@ class GPUCapability:
     name: str
     memory_total_mib: int
     memory_free_mib: int
-    compute_cap: str           # e.g. "8.9"
+    compute_cap: str           # e.g. "8.9" for CUDA; "N/A" for ROCm
     max_sm_clock_mhz: int
     max_mem_clock_mhz: int
     relative_compute_score: float = 1.0  # 1.0 = fastest GPU in the system
+    unified_memory: bool = False         # True for APU/iGPU (e.g. AMD Strix Halo)
+    cu_count: int = 0                    # Compute unit count; 0 = unknown (NVIDIA path)
 
 
 @dataclass
@@ -52,11 +68,11 @@ class HeterogeneousTopology:
 
 
 def discover_gpu_capabilities() -> HeterogeneousTopology:
-    """Query nvidia-smi and return a HeterogeneousTopology.
+    """Query nvidia-smi (CUDA) or rocm-smi (ROCm) and return a HeterogeneousTopology.
 
-    Falls back to a single-GPU flat topology (all scores = 1.0) with a
-    warning when nvidia-smi is missing, returns PermissionError, or produces
-    unparseable output.
+    Tries nvidia-smi first.  Falls back to rocm-smi when nvidia-smi is absent
+    or reports zero GPUs.  Returns a flat single-GPU fallback when neither
+    tool is available.
     """
     try:
         result = subprocess.run(
@@ -66,8 +82,8 @@ def discover_gpu_capabilities() -> HeterogeneousTopology:
             timeout=10,
         )
     except FileNotFoundError:
-        logger.warning("gpu-capabilities: nvidia-smi not found; using flat fallback topology")
-        return _flat_fallback()
+        logger.debug("gpu-capabilities: nvidia-smi not found; trying rocm-smi")
+        return _discover_rocm()
     except PermissionError as exc:
         logger.warning("gpu-capabilities: permission denied running nvidia-smi: %s; using flat fallback", exc)
         return _flat_fallback()
@@ -84,11 +100,10 @@ def discover_gpu_capabilities() -> HeterogeneousTopology:
 
     gpus = _parse_csv(result.stdout)
     if not gpus:
-        logger.warning("gpu-capabilities: no GPUs reported by nvidia-smi; using flat fallback topology")
-        return _flat_fallback()
+        logger.debug("gpu-capabilities: nvidia-smi reported 0 GPUs; trying rocm-smi")
+        return _discover_rocm()
 
-    gpus = _normalise_scores(gpus)
-    return _build_topology(gpus)
+    return _build_topology(_normalise_scores(gpus))
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +154,9 @@ def _parse_int_mhz(s: str) -> int:
 
 
 def _raw_score(gpu: GPUCapability) -> float:
-    """SM clock × compute_cap float (unnormalised)."""
+    """Raw compute proxy: CU count × clock for ROCm; compute_cap × clock for CUDA."""
+    if gpu.cu_count > 0:
+        return float(gpu.max_sm_clock_mhz * gpu.cu_count)
     try:
         cap = float(gpu.compute_cap)
     except ValueError:
@@ -200,3 +217,108 @@ def _flat_fallback() -> HeterogeneousTopology:
         mixed_vendor=False,
         compute_score_range=(1.0, 1.0),
     )
+
+
+# ---------------------------------------------------------------------------
+# ROCm path
+# ---------------------------------------------------------------------------
+
+def _discover_rocm() -> HeterogeneousTopology:
+    """Query rocm-smi and return a HeterogeneousTopology; flat fallback on failure."""
+    try:
+        result = subprocess.run(
+            _ROCM_SMI_CAPABILITIES_CMD,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except FileNotFoundError:
+        logger.warning("gpu-capabilities: rocm-smi not found; using flat fallback topology")
+        return _flat_fallback()
+    except (PermissionError, subprocess.TimeoutExpired) as exc:
+        logger.warning("gpu-capabilities: rocm-smi failed (%s); using flat fallback", exc)
+        return _flat_fallback()
+
+    if result.returncode != 0:
+        logger.warning("gpu-capabilities: rocm-smi exited %d; using flat fallback", result.returncode)
+        return _flat_fallback()
+
+    gpus = _parse_rocm_smi_capabilities(result.stdout)
+    if not gpus:
+        logger.warning("gpu-capabilities: no GPUs reported by rocm-smi; using flat fallback")
+        return _flat_fallback()
+
+    return _build_topology(_normalise_scores(gpus))
+
+
+def _parse_rocm_smi_capabilities(output: str) -> list[GPUCapability]:
+    """Parse rocm-smi JSON output into a list of GPUCapability.
+
+    Expects JSON from:
+        rocm-smi --showbus --showproductname --showmeminfo vram --showclocks --showhw --json
+
+    Card keys follow the pattern "card0", "card1", etc.  Non-card keys
+    (e.g. "system") are silently skipped.
+    """
+    try:
+        data = json.loads(output)
+    except (json.JSONDecodeError, ValueError) as exc:
+        logger.debug("rocm-smi capabilities: JSON parse error: %s", exc)
+        return []
+
+    gpus: list[GPUCapability] = []
+    for key, card in sorted(data.items()):
+        if not key.startswith("card"):
+            continue
+        try:
+            idx = int(key[4:])
+        except ValueError:
+            continue
+        if not isinstance(card, dict):
+            continue
+
+        name = card.get("Card Series") or card.get("Card Model") or key
+
+        mem_total_mib = _parse_rocm_bytes_to_mib(card.get("VRAM Total Memory (B)", "0"))
+        mem_free_mib  = _parse_rocm_bytes_to_mib(card.get("VRAM Free Memory (B)", "0"))
+        sclk_mhz      = _parse_rocm_clock_mhz(card.get("Current clock speed for sclk", "0"))
+
+        cu = 0
+        for field_name in ("CU Count", "Cu Count", "Compute Units"):
+            raw = card.get(field_name)
+            if raw is not None:
+                try:
+                    cu = int(str(raw).split()[0])
+                    break
+                except (ValueError, IndexError):
+                    pass
+
+        gpus.append(GPUCapability(
+            index=idx,
+            name=name,
+            memory_total_mib=mem_total_mib,
+            memory_free_mib=mem_free_mib,
+            compute_cap="N/A",
+            max_sm_clock_mhz=sclk_mhz,
+            max_mem_clock_mhz=0,
+            unified_memory="Strix Halo" in (name or ""),
+            cu_count=cu,
+        ))
+
+    return gpus
+
+
+def _parse_rocm_bytes_to_mib(s: object) -> int:
+    """Parse VRAM size in bytes (int or string) → MiB."""
+    try:
+        return int(str(s).split()[0]) // (1024 * 1024)
+    except (ValueError, TypeError):
+        return 0
+
+
+def _parse_rocm_clock_mhz(s: object) -> int:
+    """Parse clock string '2615 Mhz' or integer → MHz."""
+    try:
+        return int(str(s).split()[0])
+    except (ValueError, TypeError):
+        return 0

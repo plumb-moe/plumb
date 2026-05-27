@@ -48,23 +48,24 @@ class Topology:
     def discover(cls) -> "Topology":
         """Return a Topology by reading sysfs NUMA affinity for each GPU.
 
-        Requires ``nvidia-smi`` on ``$PATH``.  Falls back to a flat
-        single-node topology when GPUs are unavailable or NUMA info cannot
-        be read.
-
-        Works without PyTorch installed — falls back to querying
-        ``nvidia-smi`` directly for the GPU count.
+        Tries CUDA (nvidia-smi / torch.cuda) first.  When that reports zero
+        GPUs, auto-detects ROCm via rocm-smi.  Falls back to a flat
+        single-node topology when neither is available.
         """
         num_gpus = _count_gpus()
+        rocm = False
+        if num_gpus == 0:
+            num_gpus = _count_gpus_rocm()
+            rocm = True
         if num_gpus == 0:
             return cls.flat(0)
 
         gpu_to_numa: dict[int, int] = {}
         for idx in range(num_gpus):
-            node = _sysfs_numa(idx)
+            node = _sysfs_numa_rocm(idx) if rocm else _sysfs_numa(idx)
             gpu_to_numa[idx] = node if node is not None else 0
 
-        logger.info("Topology discovered: %s", gpu_to_numa)
+        logger.info("Topology discovered%s: %s", " via ROCm" if rocm else "", gpu_to_numa)
         return cls(gpu_to_numa)
 
     @classmethod
@@ -169,3 +170,60 @@ def _pci_path_variants(bus_id: str) -> list[str]:
         short = parts[0][4:] + ":" + ":".join(parts[1:])
         variants += [short, short.lower()]
     return list(dict.fromkeys(variants))  # deduplicate, preserve order
+
+
+# ------------------------------------------------------------------
+# ROCm helpers
+# ------------------------------------------------------------------
+
+def _count_gpus_rocm() -> int:
+    """Return the number of ROCm GPUs visible via rocm-smi.
+
+    Counts keys matching "card*" in the JSON output of
+    ``rocm-smi --showbus --showproductname --json``.
+    """
+    try:
+        r = subprocess.run(
+            ["rocm-smi", "--showbus", "--showproductname", "--json"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if r.returncode != 0 or not r.stdout.strip():
+            return 0
+        data = json.loads(r.stdout)
+        return sum(1 for k in data if k.startswith("card"))
+    except Exception:
+        return 0
+
+
+def _sysfs_numa_rocm(gpu_idx: int) -> int | None:
+    """Read the NUMA node for *gpu_idx* from sysfs using rocm-smi for PCI ID."""
+    pci = _rocm_smi_pci(gpu_idx)
+    if pci is None:
+        return None
+    for variant in _pci_path_variants(pci):
+        sysfs = Path(f"/sys/bus/pci/devices/{variant}/numa_node")
+        if sysfs.exists():
+            try:
+                val = int(sysfs.read_text().strip())
+                return max(val, 0)
+            except ValueError:
+                pass
+    logger.debug("No numa_node sysfs entry for GPU %d (pci=%s)", gpu_idx, pci)
+    return None
+
+
+def _rocm_smi_pci(gpu_idx: int) -> str | None:
+    """Return the PCI bus ID for *gpu_idx* from rocm-smi, or None."""
+    try:
+        r = subprocess.run(
+            ["rocm-smi", "--showbus", "--json"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if r.returncode != 0 or not r.stdout.strip():
+            return None
+        data = json.loads(r.stdout)
+        card = data.get(f"card{gpu_idx}", {})
+        return card.get("PCI Bus")
+    except Exception as exc:
+        logger.debug("rocm-smi unavailable: %s", exc)
+        return None
